@@ -1,0 +1,162 @@
+[
+  {
+    "serialNumber": "1001",
+    "name": "Royal Red Bridal Lehenga",
+    "imageUrl": "https://placehold.co/400x500?text=1001",
+    "sellingPrice": 25000,
+    "rentPrice": 2500,
+    "category": "lehenga"
+  },
+  {
+    "serialNumber": "1002",
+    "name": "Zari Work Banarasi Saree",
+    "imageUrl": "https://placehold.co/400x500?text=1002",
+    "sellingPrice": 18000,
+    "rentPrice": 1800,
+    "category": "saree"
+  },
+  {
+    "serialNumber": "1003",
+    "name": "Midnight Blue Sherwani",
+    "imageUrl": "https://placehold.co/400x500?text=1003",
+    "sellingPrice": 22000,
+    "rentPrice": 2200,
+    "category": "sherwani"
+  },
+  {
+    "serialNumber": "1004",
+    "name": "Pastel Pink Anarkali Suit",
+    "imageUrl": "https://placehold.co/400x500?text=1004",
+    "sellingPrice": 9500,
+    "rentPrice": 950,
+    "category": "salwar_suit"
+  },
+  {
+    "serialNumber": "1005",
+    "name": "Embroidered Bandhgala Kurta",
+    "imageUrl": "https://placehold.co/400x500?text=1005",
+    "sellingPrice": 7500,
+    "rentPrice": 750,
+    "category": "kurta"
+  },
+  {
+    "serialNumber": "1006",
+    "name": "Velvet Burgundy Lehenga",
+    "imageUrl": "https://placehold.co/400x500?text=1006",
+    "sellingPrice": 28000,
+    "rentPrice": 2800,
+    "category": "lehenga"
+  },
+  {
+    "serialNumber": "1007",
+    "name": "Golden Kanjivaram Silk Saree",
+    "imageUrl": "https://placehold.co/400x500?text=1007",
+    "sellingPrice": 32000,
+    "rentPrice": 3200,
+    "category": "saree"
+  },
+  {
+    "serialNumber": "1008",
+    "name": "Cream Achkan Sherwani",
+    "imageUrl": "https://placehold.co/400x500?text=1008",
+    "sellingPrice": 19500,
+    "rentPrice": 1950,
+    "category": "sherwani"
+  },
+  {
+    "serialNumber": "1009",
+    "name": "Floral Printed Patiala Suit",
+    "imageUrl": "https://placehold.co/400x500?text=1009",
+    "sellingPrice": 6800,
+    "rentPrice": 680,
+    "category": "salwar_suit"
+  },
+  {
+    "serialNumber": "1010",
+    "name": "Mirror Work Festival Kurta",
+    "imageUrl": "https://placehold.co/400x500?text=1010",
+    "sellingPrice": 5500,
+    "rentPrice": 550,
+    "category": "kurta"
+  },
+  {
+    "serialNumber": "2001",
+    "name": "Teal Indo-Western Fusion Gown",
+    "imageUrl": "https://placehold.co/400x500?text=2001",
+    "sellingPrice": 16000,
+    "rentPrice": 1600,
+    "category": "indo_western"
+  },
+  {
+    "serialNumber": "2002",
+    "name": "Peach Georgette Lehenga",
+    "imageUrl": "https://placehold.co/400x500?text=2002",
+    "sellingPrice": 21000,
+    "rentPrice": 2100,
+    "category": "lehenga"
+  },
+  {
+    "serialNumber": "2003",
+    "name": "Chanderi Silk Saree",
+    "imageUrl": "https://placehold.co/400x500?text=2003",
+    "sellingPrice": 14500,
+    "rentPrice": 1450,
+    "category": "saree"
+  },
+  {
+    "serialNumber": "2004",
+    "name": "Ivory Jodhpuri Sherwani",
+    "imageUrl": "https://placehold.co/400x500?text=2004",
+    "sellingPrice": 24000,
+    "rentPrice": 2400,
+    "category": "sherwani"
+  },
+  {
+    "serialNumber": "2005",
+    "name": "Lavender Sharara Suit",
+    "imageUrl": "https://placehold.co/400x500?text=2005",
+    "sellingPrice": 11000,
+    "rentPrice": 1100,
+    "category": "salwar_suit"
+  },
+  {
+    "serialNumber": "2006",
+    "name": "Linen Straight-Cut Kurta",
+    "imageUrl": "https://placehold.co/400x500?text=2006",
+    "sellingPrice": 4200,
+    "rentPrice": 420,
+    "category": "kurta"
+  },
+  {
+    "serialNumber": "2007",
+    "name": "Black Sequin Indo-Western Jacket Set",
+    "imageUrl": "https://placehold.co/400x500?text=2007",
+    "sellingPrice": 17500,
+    "rentPrice": 1750,
+    "category": "indo_western"
+  },
+  {
+    "serialNumber": "2008",
+    "name": "Mustard Bandhani Lehenga",
+    "imageUrl": "https://placehold.co/400x500?text=2008",
+    "sellingPrice": 15000,
+    "rentPrice": 1500,
+    "category": "lehenga"
+  },
+  {
+    "serialNumber": "2009",
+    "name": "Tussar Silk Tant Saree",
+    "imageUrl": "https://placehold.co/400x500?text=2009",
+    "sellingPrice": 12000,
+    "rentPrice": 1200,
+    "category": "saree"
+  },
+  {
+    "serialNumber": "2010",
+    "name": "Emerald Brocade Palazzo Set",
+    "imageUrl": "https://placehold.co/400x500?text=2010",
+    "sellingPrice": 8800,
+    "rentPrice": 880,
+    "category": "other"
+  }
+]
