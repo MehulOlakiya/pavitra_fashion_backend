@@ -30,7 +30,9 @@ export class ProductsService {
   }
 
   async findAll(category?: string): Promise<ProductDocument[]> {
-    const filter: Record<string, unknown> = { isActive: true };
+    const filter: Record<string, unknown> = {
+      isArchived: false,
+    };
     if (category) filter["category"] = category;
     return this.productModel.find(filter).sort({ createdAt: -1 }).exec();
   }
@@ -60,7 +62,9 @@ export class ProductsService {
   }
 
   async remove(id: string): Promise<void> {
-    const result = await this.productModel.findByIdAndDelete(id).exec();
+    const result = await this.productModel
+      .findByIdAndUpdate(id, { isArchived: true }, { new: true })
+      .exec();
     if (!result) throw new NotFoundException(`Product "${id}" not found.`);
   }
 

@@ -28,6 +28,9 @@ export class Product {
   sellingPrice: number;
 
   @Prop({ required: true, min: 0 })
+  purchasePrice: number;
+
+  @Prop({ required: true, min: 0 })
   rentPrice: number;
 
   @Prop({ required: false, enum: ProductCategory })
@@ -35,6 +38,9 @@ export class Product {
 
   @Prop({ default: true })
   isActive: boolean;
+
+  @Prop({ default: false })
+  isArchived: boolean;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

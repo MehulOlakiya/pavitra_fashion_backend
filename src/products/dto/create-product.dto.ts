@@ -1,11 +1,13 @@
 import {
+  IsBoolean,
   IsEnum,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
-  IsUrl,
   Min,
 } from "class-validator";
+import { Transform } from "class-transformer";
 import { ProductCategory } from "../schemas/product.schema";
 
 export class CreateProductDto {
@@ -13,7 +15,7 @@ export class CreateProductDto {
   @IsNotEmpty()
   name: string;
 
-  @IsUrl()
+  @IsString()
   @IsNotEmpty()
   imageUrl: string;
 
@@ -27,8 +29,20 @@ export class CreateProductDto {
 
   @IsNumber()
   @Min(0)
+  purchasePrice: number;
+
+  @IsNumber()
+  @Min(0)
   rentPrice: number;
 
+  @IsOptional()
   @IsEnum(ProductCategory)
-  category: ProductCategory;
+  @Transform(({ value }) =>
+    typeof value === "string" ? value.toLowerCase() : value,
+  )
+  category?: ProductCategory;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

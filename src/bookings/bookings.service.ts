@@ -118,16 +118,34 @@ export class BookingsService {
 
     const [data, total] = await Promise.all([
       this.bookingModel
-        .find()
-        .sort({ bookingDate: -1 })
-        .skip(skip)
-        .limit(safeLimit)
+        .aggregate([
+          {
+            $addFields: {
+              _sortPriority: {
+                $cond: {
+                  if: {
+                    $in: [
+                      "$status",
+                      [BookingStatus.CANCELLED, BookingStatus.RETURNED],
+                    ],
+                  },
+                  then: 1,
+                  else: 0,
+                },
+              },
+            },
+          },
+          { $sort: { _sortPriority: 1, createdAt: -1 } },
+          { $skip: skip },
+          { $limit: safeLimit },
+          { $unset: "_sortPriority" },
+        ])
         .exec(),
       this.bookingModel.countDocuments().exec(),
     ]);
 
     return {
-      data,
+      data: data as BookingDocument[],
       total,
       page: safePage,
       limit: safeLimit,
@@ -159,10 +177,14 @@ export class BookingsService {
   ): Promise<BookingDocument[]> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    endOfMonth.setHours(23, 59, 59, 999);
+
     return this.bookingModel
       .find({
         productSerialNumber: serialNumber.trim(),
-        returnDate: { $gte: today },
+        returnDate: { $gte: today, $lte: endOfMonth },
         status: {
           $nin: [BookingStatus.CANCELLED, BookingStatus.RETURNED],
         },
