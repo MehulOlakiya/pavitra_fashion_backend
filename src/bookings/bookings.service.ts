@@ -42,8 +42,6 @@ export class BookingsService {
   async create(dto: CreateBookingDto): Promise<BookingDocument> {
     const booking = new this.bookingModel({
       ...dto,
-      bookingDate: this.toISTMidnight(dto.bookingDate),
-      returnDate: this.toISTMidnight(dto.returnDate),
     });
     return booking.save();
   }
