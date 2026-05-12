@@ -33,6 +33,18 @@ export class BookingsController {
   }
 
   /**
+   * GET /api/bookings/analytics?fromDate=&toDate=
+   * Returns status-based counts in a single aggregation query, optionally filtered by date range
+   */
+  @Get("analytics")
+  getAnalytics(
+    @Query("fromDate") fromDate?: string,
+    @Query("toDate") toDate?: string,
+  ) {
+    return this.bookingsService.getAnalytics({ fromDate, toDate });
+  }
+
+  /**
    * GET /api/bookings/search?customerName=&serialNumber=&customerPhone=&status=&fromDate=&toDate=
    * Search / filter bookings — must come before :id route
    */

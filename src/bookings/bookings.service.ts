@@ -170,6 +170,95 @@ export class BookingsService {
     if (!result) throw new NotFoundException(`Booking "${id}" not found.`);
   }
 
+  /**
+   * Called by the daily cron job.
+   * Finds all ACTIVE bookings whose returnDate falls on today (UTC calendar date)
+   * and flips their status to PENDING_RETURN.
+   * Returns the count of updated documents.
+   */
+  async markDueBookingsPendingReturn(): Promise<number> {
+    const now = new Date();
+    // Start and end of today in UTC (dates are stored as UTC midnight)
+    const todayStart = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        0,
+        0,
+        0,
+      ),
+    );
+    const todayEnd = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        23,
+        59,
+        59,
+        999,
+      ),
+    );
+
+    const result = await this.bookingModel
+      .updateMany(
+        {
+          status: BookingStatus.ACTIVE,
+          returnDate: { $gte: todayStart, $lte: todayEnd },
+        },
+        { $set: { status: BookingStatus.PENDING_RETURN } },
+      )
+      .exec();
+
+    return result.modifiedCount;
+  }
+
+  async getAnalytics(
+    params: {
+      fromDate?: string;
+      toDate?: string;
+    } = {},
+  ): Promise<{
+    total: number;
+    active: number;
+    pending_return: number;
+    returned: number;
+    cancelled: number;
+  }> {
+    const matchStage: FilterQuery<BookingDocument> = {};
+    if (params.fromDate || params.toDate) {
+      matchStage.bookingDate = {};
+      if (params.fromDate)
+        matchStage.bookingDate.$gte = new Date(params.fromDate);
+      if (params.toDate) matchStage.bookingDate.$lte = new Date(params.toDate);
+    }
+
+    const groups = await this.bookingModel
+      .aggregate<{
+        _id: string;
+        count: number;
+      }>([
+        ...(Object.keys(matchStage).length ? [{ $match: matchStage }] : []),
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ])
+      .exec();
+
+    const result = {
+      total: 0,
+      active: 0,
+      pending_return: 0,
+      returned: 0,
+      cancelled: 0,
+    };
+    for (const g of groups) {
+      const key = g._id as keyof typeof result;
+      if (key in result) result[key] = g.count;
+      result.total += g.count;
+    }
+    return result;
+  }
+
   async findFutureBookingsBySerial(
     serialNumber: string,
   ): Promise<BookingDocument[]> {

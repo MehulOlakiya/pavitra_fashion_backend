@@ -18,7 +18,7 @@ export class Product {
   @Prop({ required: true, trim: true })
   name: string;
 
-  @Prop({ required: true, trim: true })
+  @Prop({ required: false, trim: true })
   imageUrl: string;
 
   @Prop({ required: true, unique: true, trim: true })
