@@ -11,6 +11,7 @@ import * as mongoose from "mongoose";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import chromium from "@sparticuz/chromium";
 import { BehaviorSubject, Observable } from "rxjs";
 import { UsersService } from "../users/users.service";
 
@@ -102,6 +103,22 @@ export class WhatsAppService implements OnApplicationShutdown {
     // /tmp is writable. process.cwd() ('/var/task') is read-only there.
     const dataPath = os.tmpdir();
 
+    // In serverless (Vercel/Lambda) there is no bundled Chrome – use the
+    // @sparticuz/chromium binary which is designed for these environments.
+    const isServerless =
+      !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+    const executablePath = isServerless
+      ? await chromium.executablePath()
+      : undefined;
+
+    const puppeteerArgs = [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      ...(isServerless ? chromium.args : []),
+    ];
+
     this.client = new Client({
       authStrategy: new RemoteAuth({
         store,
@@ -109,11 +126,9 @@ export class WhatsAppService implements OnApplicationShutdown {
         backupSyncIntervalMs: 300_000,
       }),
       puppeteer: {
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-        ],
+        ...(executablePath ? { executablePath } : {}),
+        headless: true,
+        args: puppeteerArgs,
       },
     });
 
