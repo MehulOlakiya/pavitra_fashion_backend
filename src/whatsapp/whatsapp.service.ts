@@ -116,6 +116,12 @@ export class WhatsAppService implements OnApplicationShutdown {
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
+      // Prevent Chromium from isolating each origin/site into its own process.
+      // Without these flags, WhatsApp Web's mid-load navigations destroy the
+      // Puppeteer execution context before whatsapp-web.js can inject its
+      // scripts, causing the "Execution context was destroyed" error.
+      "--disable-features=IsolateOrigins,site-per-process",
+      "--disable-site-isolation-trials",
       ...(isServerless ? chromium.args : []),
     ];
 
@@ -125,6 +131,13 @@ export class WhatsAppService implements OnApplicationShutdown {
         dataPath,
         backupSyncIntervalMs: 300_000,
       }),
+      // Cache the WhatsApp Web page locally so the client doesn't re-fetch it
+      // on every start. A fresh fetch causes an extra navigation mid-injection
+      // which is another trigger for "Execution context was destroyed".
+      webVersionCache: {
+        type: "local",
+        path: dataPath,
+      },
       puppeteer: {
         ...(executablePath ? { executablePath } : {}),
         headless: true,
@@ -194,13 +207,15 @@ export class WhatsAppService implements OnApplicationShutdown {
       }
     });
 
-    try {
-      this.client.initialize();
-    } catch (err) {
-      this.logger.error("Failed to start WhatsApp client:", err);
+    // initialize() is async – a synchronous try/catch will never catch its
+    // rejections.  Attach a .catch() so unhandled-rejection warnings are gone
+    // and the state is updated correctly when something goes wrong.
+    this.client.initialize().catch((err: Error) => {
+      this.logger.error("WhatsApp client initialization failed:", err);
       this.state = "disconnected";
+      this.client = null;
       this.push();
-    }
+    });
   }
 
   getStatus(): WhatsAppStatus {
