@@ -4,7 +4,6 @@ import {
   OnApplicationShutdown,
   BadRequestException,
 } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { Client, RemoteAuth, MessageMedia } from "whatsapp-web.js";
 import { MongoStore } from "wwebjs-mongo";
 import * as qrcode from "qrcode";
@@ -44,10 +43,7 @@ export class WhatsAppService implements OnApplicationShutdown {
     qr: null,
   });
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly usersService: UsersService) {}
 
   /** Returns an Observable that emits whenever state or QR changes. */
   getStatusStream(): Observable<WhatsAppStatus> {
@@ -65,9 +61,9 @@ export class WhatsAppService implements OnApplicationShutdown {
    * step is skipped on subsequent starts.
    *
    * NOTE: wwebjs-mongo reads from mongoose.connection (the default connection).
-   * @nestjs/mongoose uses createConnection() internally, so the default
-   * connection is never set by NestJS — we connect it explicitly here before
-   * constructing MongoStore.
+   * @nestjs/mongoose uses createConnection() internally which puts connections
+   * in mongoose.connections[]. We find the already-connected NestJS connection
+   * and pass a proxy object to MongoStore so no second connection is needed.
    */
   async initialize(userId: string): Promise<void> {
     if (this.state === "connected" || this.state === "initializing") {
@@ -79,25 +75,26 @@ export class WhatsAppService implements OnApplicationShutdown {
     this.qrDataUrl = null;
     this.push(); // notify SSE clients immediately so the UI shows the spinner
 
-    try {
-      // Ensure the default mongoose connection is open before MongoStore uses it.
-      // readyState 0 = disconnected, 1 = connected.
-      if (mongoose.connection.readyState === 0) {
-        const uri = this.configService.get<string>("MONGODB_URI")!;
-        await mongoose.connect(uri);
-        this.logger.log("Default mongoose connection opened for wwebjs-mongo");
-      }
-    } catch (err) {
+    // Find the already-connected NestJS mongoose connection.
+    // mongoose.connections[0] is always the default (unused by NestJS);
+    // NestJS adds its connection at index 1+.
+    const activeConn = mongoose.connections.find((c) => c.readyState === 1);
+    if (!activeConn) {
       this.logger.error(
-        "Failed to open mongoose connection for wwebjs-mongo:",
-        err,
+        "No active mongoose connection found. Ensure MongooseModule is initialized.",
       );
       this.state = "disconnected";
       this.push();
       return;
     }
 
-    const store = new MongoStore({ mongoose });
+    // Build a proxy that satisfies MongoStore's interface without a second connect.
+    const mongoProxy = {
+      connection: activeConn,
+      mongo: mongoose.mongo,
+    };
+
+    const store = new MongoStore({ mongoose: mongoProxy as typeof mongoose });
 
     // wwebjs-mongo's save() always reads the zip from the process cwd
     // (e.g. `RemoteAuth.zip`), while RemoteAuth writes the zip into `dataPath`.
@@ -260,9 +257,10 @@ export class WhatsAppService implements OnApplicationShutdown {
     }
 
     // Drop the GridFS collections used by wwebjs-mongo to store the session.
-    if (mongoose.connection.readyState === 1) {
+    const activeConn = mongoose.connections.find((c) => c.readyState === 1);
+    if (activeConn) {
       try {
-        const db = mongoose.connection.db;
+        const db = activeConn.db;
         const collections = await db.listCollections().toArray();
         const toDrop = [
           "whatsapp-RemoteAuth.chunks",
