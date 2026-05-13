@@ -7,8 +7,6 @@ import {
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import * as XLSX from "xlsx";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const AdmZip = require("adm-zip");
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import {
@@ -16,6 +14,7 @@ import {
   ProductDocument,
   ProductCategory,
 } from "./schemas/product.schema";
+import { BookingsService } from "../bookings/bookings.service";
 
 export interface PaginatedProducts {
   data: ProductDocument[];
@@ -37,6 +36,7 @@ export class ProductsService {
   constructor(
     @InjectModel(Product.name)
     private readonly productModel: Model<ProductDocument>,
+    private readonly bookingsService: BookingsService,
   ) {}
 
   async create(dto: CreateProductDto): Promise<ProductDocument> {
@@ -145,83 +145,54 @@ export class ProductsService {
   }
 
   /**
-   * Extract embedded images from an XLSX buffer.
-   * Returns Map<dataRowIndex, base64DataUri> where dataRowIndex is 0-based
-   * (0 = first data row after the header row).
-   * Returns an empty Map for CSVs or files without images.
+   * Returns paginated products that are available (not booked) in the given
+   * [from, to] date range. Only active, non-archived products are included.
    */
-  private extractImagesFromXlsx(buffer: Buffer): Map<number, string> {
-    const rowImageMap = new Map<number, string>();
-    try {
-      const zip = new AdmZip(buffer);
+  async findAvailable(params: {
+    from: Date;
+    to: Date;
+    page?: number;
+    limit?: number;
+    category?: string;
+    search?: string;
+  }): Promise<PaginatedProducts> {
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(200, Math.max(1, params.limit ?? 10));
+    const skip = (page - 1) * limit;
 
-      // Find the drawing XML (drawing1.xml is the first/only drawing in most files)
-      const drawingEntry = zip.getEntry("xl/drawings/drawing1.xml");
-      if (!drawingEntry) return rowImageMap;
-      const drawingXml: string = drawingEntry.getData().toString("utf8");
+    const bookedSerials = await this.bookingsService.getBookedSerials(
+      params.from,
+      params.to,
+    );
 
-      // Find the drawing relationships to map rId → media file
-      const relsEntry = zip.getEntry("xl/drawings/_rels/drawing1.xml.rels");
-      if (!relsEntry) return rowImageMap;
-      const relsXml: string = relsEntry.getData().toString("utf8");
-
-      // Build rId → zip-internal media path
-      const ridToPath = new Map<string, string>();
-      const relRegex = /Id="(rId\d+)"[^>]+Target="([^"]+)"/g;
-      let rm: RegExpExecArray | null;
-      while ((rm = relRegex.exec(relsXml)) !== null) {
-        // Target is "../media/image1.png" → resolve to "xl/media/image1.png"
-        const zipPath = "xl/" + rm[2].replace(/^\.\.\//, "");
-        ridToPath.set(rm[1], zipPath);
-      }
-
-      // Parse each anchor block in the drawing XML
-      // Use backreference so the closing tag matches the opening tag type
-      const anchorRegex =
-        /<xdr:(twoCellAnchor|oneCellAnchor)[^>]*>([\s\S]*?)<\/xdr:\1>/g;
-      let anchor: RegExpExecArray | null;
-      while ((anchor = anchorRegex.exec(drawingXml)) !== null) {
-        const block = anchor[0];
-
-        // <xdr:from><xdr:row>N</xdr:row> — 0-based Excel row (row 0 = header)
-        const rowMatch = block.match(
-          /<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/,
-        );
-        if (!rowMatch) continue;
-        const excelFromRow = parseInt(rowMatch[1], 10);
-
-        // r:embed="rIdX" inside the blip element
-        const embedMatch = block.match(/r:embed="(rId\d+)"/);
-        if (!embedMatch) continue;
-
-        const mediaPath = ridToPath.get(embedMatch[1]);
-        if (!mediaPath) continue;
-
-        const mediaEntry = zip.getEntry(mediaPath);
-        if (!mediaEntry) continue;
-
-        const ext = (mediaPath.split(".").pop() ?? "jpeg").toLowerCase();
-        const mimeMap: Record<string, string> = {
-          png: "image/png",
-          jpg: "image/jpeg",
-          jpeg: "image/jpeg",
-          gif: "image/gif",
-          webp: "image/webp",
-          bmp: "image/bmp",
-        };
-        const mime = mimeMap[ext] ?? "image/jpeg";
-        const b64 = `data:${mime};base64,${mediaEntry.getData().toString("base64")}`;
-
-        // excelFromRow 0-based: row 0 = header, so data row index = excelFromRow - 1
-        const dataIdx = excelFromRow - 1;
-        if (dataIdx >= 0) {
-          rowImageMap.set(dataIdx, b64);
-        }
-      }
-    } catch {
-      // Not a valid ZIP, no drawings, or any other issue — silently ignore
+    const filter: Record<string, unknown> = {
+      isArchived: false,
+      isActive: true,
+    };
+    if (bookedSerials.length) {
+      filter["serialNumber"] = { $nin: bookedSerials };
     }
-    return rowImageMap;
+    if (params.category) filter["category"] = params.category;
+    if (params.search) {
+      const regex = { $regex: params.search.trim(), $options: "i" };
+      filter["$or"] = [
+        { name: regex },
+        { serialNumber: regex },
+        { category: regex },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.productModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.productModel.countDocuments(filter).exec(),
+    ]);
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findBySerialNumber(serialNumber: string): Promise<ProductDocument> {
@@ -264,16 +235,7 @@ export class ProductsService {
       throw new BadRequestException("The file is empty or has no data rows.");
     }
 
-    // Extract images embedded in xlsx cells (no-op for CSV — returns empty Map)
-    const rowImageMap = this.extractImagesFromXlsx(buffer);
-
-    const REQUIRED = [
-      "name",
-      "serialNumber",
-      "rentPrice",
-      "sellingPrice",
-      "purchasePrice",
-    ];
+    const REQUIRED = ["serialNumber", "rentPrice", "category"];
     const VALID_CATEGORIES = Object.values(ProductCategory) as string[];
 
     const errors: { row: number; message: string }[] = [];
@@ -304,11 +266,8 @@ export class ProductsService {
         continue;
       }
 
-      // Numeric validation
+      // Numeric validation (only required field is rentPrice)
       const rentPrice = parseFloat(norm["rentPrice"]);
-      const sellingPrice = parseFloat(norm["sellingPrice"]);
-      const purchasePrice = parseFloat(norm["purchasePrice"]);
-
       if (isNaN(rentPrice) || rentPrice < 0) {
         errors.push({
           row: rowNum,
@@ -317,31 +276,46 @@ export class ProductsService {
         skipped++;
         continue;
       }
-      if (isNaN(sellingPrice) || sellingPrice < 0) {
-        errors.push({
-          row: rowNum,
-          message: "sellingPrice must be a non-negative number.",
-        });
-        skipped++;
-        continue;
+      if (norm["sellingPrice"]) {
+        const v = parseFloat(norm["sellingPrice"]);
+        if (isNaN(v) || v < 0) {
+          errors.push({
+            row: rowNum,
+            message: "sellingPrice must be a non-negative number.",
+          });
+          skipped++;
+          continue;
+        }
       }
-      if (isNaN(purchasePrice) || purchasePrice < 0) {
-        errors.push({
-          row: rowNum,
-          message: "purchasePrice must be a non-negative number.",
-        });
-        skipped++;
-        continue;
+      if (norm["purchasePrice"]) {
+        const v = parseFloat(norm["purchasePrice"]);
+        if (isNaN(v) || v < 0) {
+          errors.push({
+            row: rowNum,
+            message: "purchasePrice must be a non-negative number.",
+          });
+          skipped++;
+          continue;
+        }
       }
 
-      // Category validation
-      let category: ProductCategory | undefined;
-      if (norm["category"]) {
-        const cat = norm["category"].toLowerCase().replace(/\s+/g, "_");
+      // Category validation (required)
+      const rawCat = norm["category"];
+      if (!rawCat) {
+        errors.push({
+          row: rowNum,
+          message: "Missing required field: category",
+        });
+        skipped++;
+        continue;
+      }
+      let category: ProductCategory;
+      {
+        const cat = rawCat.toLowerCase().replace(/\s+/g, "_");
         if (!VALID_CATEGORIES.includes(cat)) {
           errors.push({
             row: rowNum,
-            message: `Invalid category "${norm["category"]}". Valid values: ${VALID_CATEGORIES.join(", ")}`,
+            message: `Invalid category "${rawCat}". Valid values: ${VALID_CATEGORIES.join(", ")}`,
           });
           skipped++;
           continue;
@@ -362,17 +336,21 @@ export class ProductsService {
         continue;
       }
 
-      // Determine imageUrl: embedded Excel image takes priority over any text URL
-      const imageUrl = rowImageMap.get(i) ?? (norm["imageUrl"] || "");
+      // Determine imageUrl from text column only
+      const imageUrl = norm["imageUrl"] || undefined;
 
       // Insert
       const product = new this.productModel({
-        name: norm["name"],
+        name: norm["name"] || undefined,
         serialNumber: norm["serialNumber"],
         imageUrl,
         rentPrice,
-        sellingPrice,
-        purchasePrice,
+        sellingPrice: norm["sellingPrice"]
+          ? parseFloat(norm["sellingPrice"])
+          : undefined,
+        purchasePrice: norm["purchasePrice"]
+          ? parseFloat(norm["purchasePrice"])
+          : undefined,
         category,
         isActive: true,
       });

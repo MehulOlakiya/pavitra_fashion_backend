@@ -26,4 +26,13 @@ export class UsersService {
     const user = new this.userModel(data);
     return user.save();
   }
+
+  async setWhatsappSessionEnable(
+    userId: string,
+    enabled: boolean,
+  ): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, {
+      isWhatsappSessionEnable: enabled,
+    });
+  }
 }

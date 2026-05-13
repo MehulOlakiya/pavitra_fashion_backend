@@ -2,14 +2,15 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import { UsersService } from "../users/users.service";
+import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { LoginDto } from "./dto/login.dto";
-import { profile } from "console";
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly whatsappService: WhatsAppService,
   ) {}
 
   async login(dto: LoginDto): Promise<{
@@ -20,6 +21,7 @@ export class AuthService {
       email: string;
       role: string;
       profileImage: string | null;
+      isWhatsappSessionEnable: boolean;
     };
   }> {
     const user = await this.usersService.findByEmail(dto.email);
@@ -43,6 +45,7 @@ export class AuthService {
       role: user.role,
       name: user.name,
       profileImage: user?.profileImage || null,
+      isWhatsappSessionEnable: user?.isWhatsappSessionEnable || false,
     };
     const accessToken = this.jwtService.sign(payload);
 
@@ -54,7 +57,19 @@ export class AuthService {
         email: user.email,
         role: user.role,
         profileImage: user?.profileImage || null,
+        isWhatsappSessionEnable: user?.isWhatsappSessionEnable || false,
       },
     };
+  }
+
+  async logout(userId: string): Promise<void> {
+    // Terminate WhatsApp session and drop GridFS collections
+    try {
+      await this.whatsappService.logout();
+    } catch (err) {
+      // Non-fatal — proceed even if WA session was already inactive
+    }
+    // Ensure the user flag is cleared regardless of who the active WA user was
+    await this.usersService.setWhatsappSessionEnable(userId, false);
   }
 }

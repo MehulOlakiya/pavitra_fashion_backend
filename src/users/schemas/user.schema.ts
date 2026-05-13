@@ -28,6 +28,9 @@ export class User {
 
   @Prop({ required: false })
   profileImage: string;
+
+  @Prop({ default: false })
+  isWhatsappSessionEnable: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

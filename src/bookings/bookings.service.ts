@@ -170,6 +170,14 @@ export class BookingsService {
     if (!result) throw new NotFoundException(`Booking "${id}" not found.`);
   }
 
+  async markBillSent(id: string): Promise<BookingDocument> {
+    const updated = await this.bookingModel
+      .findByIdAndUpdate(id, { isBillSend: true }, { new: true })
+      .exec();
+    if (!updated) throw new NotFoundException(`Booking "${id}" not found.`);
+    return updated;
+  }
+
   /**
    * Called by the daily cron job.
    * Finds all ACTIVE bookings whose returnDate falls on today (UTC calendar date)
@@ -257,6 +265,24 @@ export class BookingsService {
       result.total += g.count;
     }
     return result;
+  }
+
+  /**
+   * Returns all distinct product serial numbers that have an ACTIVE or
+   * PENDING_RETURN booking overlapping the given [from, to] date range.
+   */
+  async getBookedSerials(from: Date, to: Date): Promise<string[]> {
+    // Shift 'to' to the next day so the range is inclusive at the day level
+    const toInclusive = new Date(to);
+    toInclusive.setUTCDate(toInclusive.getUTCDate() + 1);
+
+    return this.bookingModel
+      .distinct("productSerialNumber", {
+        status: { $in: [BookingStatus.ACTIVE, BookingStatus.PENDING_RETURN] },
+        bookingDate: { $lt: toInclusive },
+        returnDate: { $gte: from },
+      })
+      .exec() as Promise<string[]>;
   }
 
   async findFutureBookingsBySerial(

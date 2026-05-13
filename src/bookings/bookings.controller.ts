@@ -84,6 +84,15 @@ export class BookingsController {
   }
 
   /**
+   * PATCH /api/bookings/:id/bill-sent
+   * Mark that the WhatsApp bill was successfully sent for this booking
+   */
+  @Patch(":id/bill-sent")
+  markBillSent(@Param("id") id: string) {
+    return this.bookingsService.markBillSent(id);
+  }
+
+  /**
    * DELETE /api/bookings/:id
    */
   @Delete(":id")

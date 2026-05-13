@@ -6,16 +6,12 @@ export type ProductDocument = Product & Document;
 export enum ProductCategory {
   LEHENGA = "lehenga",
   SAREE = "saree",
-  SHERWANI = "sherwani",
-  SALWAR_SUIT = "salwar_suit",
-  KURTA = "kurta",
-  INDO_WESTERN = "indo_western",
-  OTHER = "other",
+  ACCESSORIES = "accessories",
 }
 
 @Schema({ timestamps: true })
 export class Product {
-  @Prop({ required: true, trim: true })
+  @Prop({ required: false, trim: true })
   name: string;
 
   @Prop({ required: false, trim: true })
@@ -24,16 +20,16 @@ export class Product {
   @Prop({ required: true, unique: true, trim: true })
   serialNumber: string;
 
-  @Prop({ required: true, min: 0 })
+  @Prop({ required: false, min: 0 })
   sellingPrice: number;
 
-  @Prop({ required: true, min: 0 })
+  @Prop({ required: false, min: 0 })
   purchasePrice: number;
 
   @Prop({ required: true, min: 0 })
   rentPrice: number;
 
-  @Prop({ required: false, enum: ProductCategory })
+  @Prop({ required: true, enum: ProductCategory })
   category: ProductCategory;
 
   @Prop({ default: true })

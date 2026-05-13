@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNotEmpty,
@@ -7,16 +8,16 @@ import {
   IsString,
   Min,
 } from "class-validator";
-import { BookingStatus } from "../schemas/booking.schema";
+import { BookingStatus, BeltType } from "../schemas/booking.schema";
 
 export class CreateBookingDto {
   @IsString()
   @IsNotEmpty()
   productSerialNumber: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  customerName: string;
+  customerName?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -26,13 +27,15 @@ export class CreateBookingDto {
   @IsNotEmpty()
   village: string;
 
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  advancePayment: number;
+  advancePayment?: number;
 
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  remainingPayment: number;
+  remainingPayment?: number;
 
   @IsDateString()
   bookingDate: string;
@@ -43,4 +46,21 @@ export class CreateBookingDto {
   @IsOptional()
   @IsEnum(BookingStatus)
   status?: BookingStatus;
+
+  @IsOptional()
+  @IsEnum(BeltType)
+  beltType?: BeltType;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  freshPiece?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  freshPieceCost?: number;
 }

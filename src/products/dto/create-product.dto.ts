@@ -12,11 +12,11 @@ import { ProductCategory } from "../schemas/product.schema";
 
 export class CreateProductDto {
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   name: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   imageUrl: string;
 
   @IsString()
@@ -24,11 +24,13 @@ export class CreateProductDto {
   serialNumber: string;
 
   @IsNumber()
+  @IsOptional()
   @Min(0)
   sellingPrice: number;
 
   @IsNumber()
   @Min(0)
+  @IsOptional()
   purchasePrice: number;
 
   @IsNumber()

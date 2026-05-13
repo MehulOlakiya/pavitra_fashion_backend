@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -110,6 +111,34 @@ export class ProductsController {
     const futureBookings =
       await this.bookingsService.findFutureBookingsBySerial(serialNumber);
     return { product, futureBookings };
+  }
+
+  /**
+   * GET /api/products/available?from=ISO&to=ISO&page=1&limit=10&category=...&search=...
+   * Returns paginated products that are NOT booked in the given date range.
+   */
+  @Get("available")
+  findAvailable(
+    @Query("from") from: string,
+    @Query("to") to: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+    @Query("category") category?: string,
+    @Query("search") search?: string,
+  ) {
+    if (!from || !to) {
+      throw new BadRequestException(
+        "'from' and 'to' query parameters are required.",
+      );
+    }
+    return this.productsService.findAvailable({
+      from: new Date(from),
+      to: new Date(to),
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      category,
+      search,
+    });
   }
 
   /**

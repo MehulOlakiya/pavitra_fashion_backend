@@ -7,6 +7,8 @@ import { BookingsModule } from "./bookings/bookings.module";
 import { ProductsModule } from "./products/products.module";
 import { UsersModule } from "./users/users.module";
 import { TasksModule } from "./tasks/tasks.module";
+import { UploadModule } from "./upload/upload.module";
+import { WhatsAppModule } from "./whatsapp/whatsapp.module";
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { TasksModule } from "./tasks/tasks.module";
     ProductsModule,
     BookingsModule,
     TasksModule,
+    UploadModule,
+    WhatsAppModule,
   ],
 })
 export class AppModule {}
