@@ -10,6 +10,7 @@ import * as qrcode from "qrcode";
 import * as mongoose from "mongoose";
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 import { BehaviorSubject, Observable } from "rxjs";
 import { UsersService } from "../users/users.service";
 
@@ -96,10 +97,10 @@ export class WhatsAppService implements OnApplicationShutdown {
 
     const store = new MongoStore({ mongoose: mongoProxy as typeof mongoose });
 
-    // wwebjs-mongo's save() always reads the zip from the process cwd
-    // (e.g. `RemoteAuth.zip`), while RemoteAuth writes the zip into `dataPath`.
-    // Setting dataPath to '.' keeps both libraries pointing at the same file.
-    const dataPath = ".";
+    // Use os.tmpdir() so RemoteAuth can write its session files in any
+    // environment, including serverless runtimes (Vercel/Lambda) where only
+    // /tmp is writable. process.cwd() ('/var/task') is read-only there.
+    const dataPath = os.tmpdir();
 
     this.client = new Client({
       authStrategy: new RemoteAuth({
@@ -248,9 +249,9 @@ export class WhatsAppService implements OnApplicationShutdown {
       this.client = null;
     }
     // Remove the local session dir and zip so RemoteAuth starts clean.
-    // With dataPath='.', RemoteAuth writes RemoteAuth/ and RemoteAuth.zip in cwd.
+    // These are written inside dataPath (os.tmpdir()), not process.cwd().
     for (const entry of ["RemoteAuth", "RemoteAuth.zip"]) {
-      const p = path.resolve(entry);
+      const p = path.join(os.tmpdir(), entry);
       if (fs.existsSync(p)) {
         fs.rmSync(p, { recursive: true, force: true });
       }
