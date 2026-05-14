@@ -65,7 +65,7 @@ export class AuthService {
   async logout(userId: string): Promise<void> {
     // Terminate WhatsApp session and drop GridFS collections
     try {
-      await this.whatsappService.logout();
+      await this.whatsappService.logout(userId);
     } catch (err) {
       // Non-fatal — proceed even if WA session was already inactive
     }
