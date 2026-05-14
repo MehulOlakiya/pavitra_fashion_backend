@@ -84,8 +84,8 @@ export class WhatsAppController {
    */
   @Post("logout")
   @HttpCode(HttpStatus.OK)
-  async logout() {
-    await this.whatsappService.logout();
+  async logout(@Request() req: { user: { id: string } }) {
+    await this.whatsappService.logout(req.user.id);
     return { message: "Logged out successfully" };
   }
 }

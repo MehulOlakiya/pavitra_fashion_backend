@@ -303,7 +303,7 @@ export class WhatsAppService implements OnApplicationShutdown {
    * Logout: clears the RemoteAuth session from MongoDB and destroys the client.
    * After this the next initialize() call will generate a fresh QR code.
    */
-  async logout(): Promise<void> {
+  async logout(userId:string): Promise<void> {
     if (this.client) {
       try {
         // logout() asks RemoteAuth to delete its stored session
@@ -348,9 +348,8 @@ export class WhatsAppService implements OnApplicationShutdown {
       }
     }
 
-    if (this.activeUserId) {
       await this.whatsappSessionModel
-        .deleteOne({ userId: this.activeUserId })
+        .deleteOne({ userId })
         .exec()
         .catch((err) =>
           this.logger.error("Failed to delete WhatsApp session document:", err),
@@ -362,7 +361,7 @@ export class WhatsAppService implements OnApplicationShutdown {
           this.logger.error("Failed to clear isWhatsappSessionEnable", err),
         );
       this.activeUserId = null;
-    }
+    
     this.statusSubject.next({ state: "idle", qr: null });
     this.logger.log("WhatsApp session logged out and cleared");
   }
