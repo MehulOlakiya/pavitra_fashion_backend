@@ -355,6 +355,7 @@ export class WhatsAppService implements OnApplicationShutdown {
         .catch((err) =>
           this.logger.error("Failed to delete WhatsApp session document:", err),
         );
+        console.log('Whatsapp Session Logged out')
       this.usersService
         .setWhatsappSessionEnable(this.activeUserId, false)
         .catch((err) =>
