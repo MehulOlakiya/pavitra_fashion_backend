@@ -369,7 +369,7 @@ export class WhatsAppService implements OnApplicationShutdown {
   async onApplicationShutdown(): Promise<void> {
     if (this.client) {
       console.log("Shutting down WhatsApp client...");
-      await this.client.destroy();
+      //   await this.client.destroy();
     }
   }
 }
