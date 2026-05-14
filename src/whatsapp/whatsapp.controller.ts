@@ -36,10 +36,11 @@ export class WhatsAppController {
    * GET /api/whatsapp/status
    * Returns the current connection state and, when in 'qr' state, the
    * base-64 data-URL of the QR code to display in the UI.
+   * State is read from MongoDB so it persists across service restarts.
    */
   @Get("status")
-  getStatus() {
-    return this.whatsappService.getStatus();
+  async getStatus(@Request() req: { user: { id: string } }) {
+    return this.whatsappService.getStatus(req.user.id);
   }
 
   /**
@@ -63,8 +64,12 @@ export class WhatsAppController {
    */
   @Post("send")
   @HttpCode(HttpStatus.OK)
-  async sendMessage(@Body() dto: SendMessageDto) {
+  async sendMessage(
+    @Request() req: { user: { id: string } },
+    @Body() dto: SendMessageDto,
+  ) {
     await this.whatsappService.sendMessage(
+      req.user.id,
       dto.mobileNumber,
       dto.message,
       dto.imageUrl,

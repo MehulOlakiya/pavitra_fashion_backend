@@ -4,16 +4,22 @@ import {
   OnApplicationShutdown,
   BadRequestException,
 } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
 import { Client, RemoteAuth, MessageMedia } from "whatsapp-web.js";
 import { MongoStore } from "wwebjs-mongo";
 import * as qrcode from "qrcode";
 import * as mongoose from "mongoose";
+import { Model } from "mongoose";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import chromium from "@sparticuz/chromium";
 import { BehaviorSubject, Observable } from "rxjs";
 import { UsersService } from "../users/users.service";
+import {
+  WhatsAppSession,
+  WhatsAppSessionDocument,
+} from "./schemas/whatsapp-session.schema";
 
 export type WhatsAppState =
   | "idle"
@@ -31,9 +37,7 @@ export interface WhatsAppStatus {
 export class WhatsAppService implements OnApplicationShutdown {
   private readonly logger = new Logger(WhatsAppService.name);
   private client: Client | null = null;
-  private qrDataUrl: string | null = null;
-  private state: WhatsAppState = "idle";
-  /** The user who called initialize() – their flag gets updated on ready/disconnect. */
+  /** The user who called initialize() – used as the DB key for state updates. */
   private activeUserId: string | null = null;
 
   /**
@@ -45,16 +49,36 @@ export class WhatsAppService implements OnApplicationShutdown {
     qr: null,
   });
 
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    @InjectModel(WhatsAppSession.name)
+    private readonly whatsappSessionModel: Model<WhatsAppSessionDocument>,
+  ) {}
 
   /** Returns an Observable that emits whenever state or QR changes. */
   getStatusStream(): Observable<WhatsAppStatus> {
     return this.statusSubject.asObservable();
   }
 
-  /** Emit current state to all SSE subscribers. */
-  private push(): void {
-    this.statusSubject.next({ state: this.state, qr: this.qrDataUrl });
+  /**
+   * Persist state to MongoDB and emit to all SSE subscribers.
+   * This is the single source of truth – no in-memory state/qr fields.
+   */
+  private push(state: WhatsAppState, qr: string | null): void {
+    this.statusSubject.next({ state, qr });
+    if (this.activeUserId) {
+      const userId = this.activeUserId;
+      this.whatsappSessionModel
+        .findOneAndUpdate(
+          { userId },
+          { state, qr },
+          { upsert: true, new: true },
+        )
+        .exec()
+        .catch((err) =>
+          this.logger.error("Failed to persist WhatsApp status:", err),
+        );
+    }
   }
 
   /**
@@ -68,14 +92,18 @@ export class WhatsAppService implements OnApplicationShutdown {
    * and pass a proxy object to MongoStore so no second connection is needed.
    */
   async initialize(userId: string): Promise<void> {
-    if (this.state === "connected" || this.state === "initializing") {
+    // Read current state from DB – no in-memory state field.
+    const existing = await this.whatsappSessionModel
+      .findOne({ userId })
+      .lean()
+      .exec();
+    const currentState = (existing?.state ?? "idle") as WhatsAppState;
+    if (currentState === "connected" || currentState === "initializing") {
       return;
     }
 
     this.activeUserId = userId;
-    this.state = "initializing";
-    this.qrDataUrl = null;
-    this.push(); // notify SSE clients immediately so the UI shows the spinner
+    this.push("initializing", null); // notify SSE clients immediately so the UI shows the spinner
 
     // Find the already-connected NestJS mongoose connection.
     // mongoose.connections[0] is always the default (unused by NestJS);
@@ -85,8 +113,7 @@ export class WhatsAppService implements OnApplicationShutdown {
       this.logger.error(
         "No active mongoose connection found. Ensure MongooseModule is initialized.",
       );
-      this.state = "disconnected";
-      this.push();
+      this.push("disconnected", null);
       return;
     }
 
@@ -153,9 +180,8 @@ export class WhatsAppService implements OnApplicationShutdown {
     this.client.on("qr", async (qr: string) => {
       try {
         this.logger.log("QR code generated – waiting for scan");
-        this.qrDataUrl = await qrcode.toDataURL(qr);
-        this.state = "qr";
-        this.push();
+        const qrDataUrl = await qrcode.toDataURL(qr);
+        this.push("qr", qrDataUrl);
       } catch (err) {
         this.logger.error("Failed to generate QR data URL:", err);
       }
@@ -164,9 +190,7 @@ export class WhatsAppService implements OnApplicationShutdown {
     this.client.on("ready", () => {
       try {
         this.logger.log("WhatsApp client connected");
-        this.state = "connected";
-        this.qrDataUrl = null;
-        this.push();
+        this.push("connected", null);
         if (this.activeUserId) {
           this.usersService
             .setWhatsappSessionEnable(this.activeUserId, true)
@@ -190,10 +214,8 @@ export class WhatsAppService implements OnApplicationShutdown {
     this.client.on("disconnected", (reason: string) => {
       try {
         this.logger.warn(`WhatsApp disconnected: ${reason}`);
-        this.state = "disconnected";
         this.client = null;
-        this.qrDataUrl = null;
-        this.push();
+        this.push("disconnected", null);
         if (this.activeUserId) {
           this.usersService
             .setWhatsappSessionEnable(this.activeUserId, false)
@@ -212,24 +234,42 @@ export class WhatsAppService implements OnApplicationShutdown {
     // and the state is updated correctly when something goes wrong.
     this.client.initialize().catch((err: Error) => {
       this.logger.error("WhatsApp client initialization failed:", err);
-      this.state = "disconnected";
       this.client = null;
-      this.push();
+      this.push("disconnected", null);
     });
   }
 
-  getStatus(): WhatsAppStatus {
-    return { state: this.state, qr: this.qrDataUrl };
+  async getStatus(userId: string): Promise<WhatsAppStatus> {
+    const session = await this.whatsappSessionModel
+      .findOne({ userId })
+      .lean()
+      .exec();
+    if (!session) {
+      return { state: "idle", qr: null };
+    }
+    return { state: session.state as WhatsAppState, qr: session.qr ?? null };
   }
 
   async sendMessage(
+    userId: string,
     mobileNumber: string,
     message: string,
     imageUrl?: string,
   ): Promise<void> {
-    if (!this.client || this.state !== "connected") {
+    // If the client is gone or the DB state is not connected, reinitialize so
+    // a fresh QR code is generated, then surface a scannable error.
+    const session = await this.whatsappSessionModel
+      .findOne({ userId })
+      .lean()
+      .exec();
+    const isConnected = this.client && session?.state === "connected";
+    if (!isConnected) {
+      // Kick off re-initialization in the background (generates QR via SSE).
+      this.initialize(userId).catch((err) =>
+        this.logger.error("Re-initialization during sendMessage failed:", err),
+      );
       throw new BadRequestException(
-        "WhatsApp session is not active. Please scan the QR code first.",
+        "WhatsApp session is not active. A new QR code is being generated – please scan it and try again.",
       );
     }
     const chatId = `91${mobileNumber}@c.us`;
@@ -308,10 +348,13 @@ export class WhatsAppService implements OnApplicationShutdown {
       }
     }
 
-    this.state = "idle";
-    this.qrDataUrl = null;
-    this.push();
     if (this.activeUserId) {
+      await this.whatsappSessionModel
+        .deleteOne({ userId: this.activeUserId })
+        .exec()
+        .catch((err) =>
+          this.logger.error("Failed to delete WhatsApp session document:", err),
+        );
       this.usersService
         .setWhatsappSessionEnable(this.activeUserId, false)
         .catch((err) =>
@@ -319,11 +362,13 @@ export class WhatsAppService implements OnApplicationShutdown {
         );
       this.activeUserId = null;
     }
+    this.statusSubject.next({ state: "idle", qr: null });
     this.logger.log("WhatsApp session logged out and cleared");
   }
 
   async onApplicationShutdown(): Promise<void> {
     if (this.client) {
+      console.log("Shutting down WhatsApp client...");
       await this.client.destroy();
     }
   }
