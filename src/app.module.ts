@@ -9,7 +9,7 @@ import { UsersModule } from "./users/users.module";
 import { TasksModule } from "./tasks/tasks.module";
 import { UploadModule } from "./upload/upload.module";
 import { WhatsAppModule } from "./whatsapp/whatsapp.module";
-
+import { CustomersModule } from "./customers/customers.module";
 @Module({
   imports: [
     // Load .env file globally
@@ -34,6 +34,7 @@ import { WhatsAppModule } from "./whatsapp/whatsapp.module";
     TasksModule,
     UploadModule,
     WhatsAppModule,
+    CustomersModule,
   ],
 })
 export class AppModule {}

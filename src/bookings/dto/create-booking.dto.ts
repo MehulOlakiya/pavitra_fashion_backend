@@ -7,25 +7,52 @@ import {
   IsOptional,
   IsString,
   Min,
+  IsArray,
+  ValidateNested,
 } from "class-validator";
+import { Type } from "class-transformer";
 import { BookingStatus, BeltType } from "../schemas/booking.schema";
 
-export class CreateBookingDto {
+export class BookingItemDto {
   @IsString()
   @IsNotEmpty()
-  productSerialNumber: string;
+  serialNumber: string;
+
+  @IsString()
+  @IsNotEmpty()
+  product: string;
+
+  @IsNumber()
+  @Min(1)
+  quantity: number;
 
   @IsOptional()
+  @IsEnum(BeltType)
+  beltType?: BeltType;
+
+  @IsOptional()
+  @IsBoolean()
+  freshPiece?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  freshPieceCost?: number;
+}
+
+export class CreateBookingDto {
+  @IsOptional()
   @IsString()
-  customerName?: string;
+  productSerialNumber?: string; // Kept for backwards compatibility
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BookingItemDto)
+  items: BookingItemDto[];
 
   @IsString()
   @IsNotEmpty()
-  customerPhone: string;
-
-  @IsString()
-  @IsNotEmpty()
-  village: string;
+  customer: string;
 
   @IsOptional()
   @IsNumber()

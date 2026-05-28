@@ -9,6 +9,10 @@ import {
   BookingDocument,
   BookingStatus,
 } from "./schemas/booking.schema";
+import {
+  Customer,
+  CustomerDocument,
+} from "../customers/schemas/customer.schema";
 
 export interface PaginatedBookings {
   data: BookingDocument[];
@@ -23,6 +27,8 @@ export class BookingsService {
   constructor(
     @InjectModel(Booking.name)
     private readonly bookingModel: Model<BookingDocument>,
+    @InjectModel(Customer.name)
+    private readonly customerModel: Model<CustomerDocument>,
   ) {}
 
   /** Normalise any date input to IST (Asia/Kolkata, +05:30) midnight */
@@ -40,56 +46,99 @@ export class BookingsService {
   }
 
   async create(dto: CreateBookingDto): Promise<BookingDocument> {
+    const orderId = `ORD-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const booking = new this.bookingModel({
       ...dto,
+      orderId,
     });
-    return booking.save();
+    const saved = await booking.save();
+    return saved.populate("customer");
   }
 
   async search(query: SearchBookingDto): Promise<PaginatedBookings> {
     const filter: FilterQuery<BookingDocument> = {};
 
-    if (query.serialNumber || query.customerName || query.customerPhone) {
-      const orClauses: FilterQuery<BookingDocument>[] = [];
+    // Resolve customer-based search by looking up matching customer IDs first
+    if (query.customerName || query.customerPhone) {
+      const customerFilter: FilterQuery<CustomerDocument> = { $or: [] };
+      if (query.customerName) {
+        customerFilter.$or!.push({
+          name: { $regex: query.customerName.trim(), $options: "i" },
+        });
+      }
+      if (query.customerPhone) {
+        customerFilter.$or!.push({
+          mobileNumber: { $regex: query.customerPhone.trim(), $options: "i" },
+        });
+      }
+      const matchingCustomers = await this.customerModel
+        .find(customerFilter)
+        .select("_id")
+        .exec();
+      const customerIds = matchingCustomers.map((c) => c._id);
 
       if (query.serialNumber) {
-        orClauses.push({
+        // Both serial number and customer filters
+        filter.$and = [
+          {
+            $or: [
+              {
+                productSerialNumber: {
+                  $regex: query.serialNumber.trim(),
+                  $options: "i",
+                },
+              },
+              {
+                "items.serialNumber": {
+                  $regex: query.serialNumber.trim(),
+                  $options: "i",
+                },
+              },
+            ],
+          },
+          { customer: { $in: customerIds } },
+        ];
+      } else {
+        filter.customer = { $in: customerIds };
+      }
+    } else if (query.serialNumber) {
+      filter.$or = [
+        {
           productSerialNumber: {
             $regex: query.serialNumber.trim(),
             $options: "i",
           },
-        });
-      }
-
-      if (query.customerName) {
-        orClauses.push({
-          customerName: {
-            $regex: query.customerName.trim(),
+        },
+        {
+          "items.serialNumber": {
+            $regex: query.serialNumber.trim(),
             $options: "i",
           },
-        });
-      }
-
-      if (query.customerPhone) {
-        orClauses.push({
-          customerPhone: {
-            $regex: query.customerPhone.trim(),
-            $options: "i",
-          },
-        });
-      }
-
-      filter.$or = orClauses;
+        },
+      ];
     }
 
     if (query.status) {
       filter.status = query.status;
     }
 
-    if (query.fromDate || query.toDate) {
-      filter.bookingDate = {};
-      if (query.fromDate) filter.bookingDate.$gte = new Date(query.fromDate);
-      if (query.toDate) filter.bookingDate.$lte = new Date(query.toDate);
+    if (query.overlap === "true" && query.fromDate && query.toDate) {
+      const toInclusive = new Date(query.toDate);
+      toInclusive.setUTCDate(toInclusive.getUTCDate() + 1);
+
+      filter.bookingDate = { $lt: toInclusive };
+      filter.returnDate = { $gte: new Date(query.fromDate) };
+      if (!filter.status) {
+        filter.status = {
+          $nin: [BookingStatus.CANCELLED, BookingStatus.RETURNED],
+        };
+      }
+    } else if (query.fromDate || query.toDate) {
+      const toInclusive = new Date(query.toDate);
+      toInclusive.setUTCDate(toInclusive.getUTCDate() + 1);
+
+      filter.bookingDate = { $lt: toInclusive };
+      filter.returnDate = { $gte: new Date(query.fromDate) };
     }
 
     const page = Math.max(1, parseInt(query.page ?? "1", 10));
@@ -99,6 +148,7 @@ export class BookingsService {
     const [data, total] = await Promise.all([
       this.bookingModel
         .find(filter)
+        .populate("customer")
         .sort({ bookingDate: -1 })
         .skip(skip)
         .limit(limit)
@@ -137,6 +187,15 @@ export class BookingsService {
           { $skip: skip },
           { $limit: safeLimit },
           { $unset: "_sortPriority" },
+          {
+            $lookup: {
+              from: "customers",
+              localField: "customer",
+              foreignField: "_id",
+              as: "customer",
+            },
+          },
+          { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } },
         ])
         .exec(),
       this.bookingModel.countDocuments().exec(),
@@ -152,7 +211,11 @@ export class BookingsService {
   }
 
   async findOne(id: string): Promise<BookingDocument> {
-    const booking = await this.bookingModel.findById(id).exec();
+    const booking = await this.bookingModel
+      .findById(id)
+      .populate("customer")
+      .populate("items.product")
+      .exec();
     if (!booking) throw new NotFoundException(`Booking "${id}" not found.`);
     return booking;
   }
@@ -160,6 +223,7 @@ export class BookingsService {
   async update(id: string, dto: UpdateBookingDto): Promise<BookingDocument> {
     const updated = await this.bookingModel
       .findByIdAndUpdate(id, dto, { new: true, runValidators: true })
+      .populate("customer")
       .exec();
     if (!updated) throw new NotFoundException(`Booking "${id}" not found.`);
     return updated;
@@ -276,13 +340,23 @@ export class BookingsService {
     const toInclusive = new Date(to);
     toInclusive.setUTCDate(toInclusive.getUTCDate() + 1);
 
-    return this.bookingModel
-      .distinct("productSerialNumber", {
-        status: { $in: [BookingStatus.ACTIVE, BookingStatus.PENDING_RETURN] },
-        bookingDate: { $lt: toInclusive },
-        returnDate: { $gte: from },
-      })
-      .exec() as Promise<string[]>;
+    const filter = {
+      status: { $in: [BookingStatus.ACTIVE, BookingStatus.PENDING_RETURN] },
+      bookingDate: { $lt: toInclusive },
+      returnDate: { $gte: from },
+    };
+
+    const distinctTopLevel = await this.bookingModel
+      .distinct("productSerialNumber", filter)
+      .exec();
+    const distinctItems = await this.bookingModel
+      .distinct("items.serialNumber", filter)
+      .exec();
+
+    const all = [...distinctTopLevel, ...distinctItems].filter(
+      Boolean,
+    ) as string[];
+    return Array.from(new Set(all));
   }
 
   async findFutureBookingsBySerial(
@@ -294,9 +368,14 @@ export class BookingsService {
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     endOfMonth.setHours(23, 59, 59, 999);
 
+    const serialRegex = new RegExp(`^${serialNumber.trim()}$`, "i");
+
     return this.bookingModel
       .find({
-        productSerialNumber: serialNumber.trim(),
+        $or: [
+          { productSerialNumber: serialRegex },
+          { "items.serialNumber": serialRegex },
+        ],
         returnDate: { $gte: today, $lte: endOfMonth },
         status: {
           $nin: [BookingStatus.CANCELLED, BookingStatus.RETURNED],

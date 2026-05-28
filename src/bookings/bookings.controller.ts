@@ -9,10 +9,13 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from "@nestjs/common";
+import { Response } from "express";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { BookingsService } from "./bookings.service";
+import { PdfService } from "../pdf/pdf.service";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 import { SearchBookingDto } from "./dto/search-booking.dto";
 import { UpdateBookingDto } from "./dto/update-booking.dto";
@@ -20,7 +23,10 @@ import { UpdateBookingDto } from "./dto/update-booking.dto";
 @UseGuards(JwtAuthGuard)
 @Controller("bookings")
 export class BookingsController {
-  constructor(private readonly bookingsService: BookingsService) {}
+  constructor(
+    private readonly bookingsService: BookingsService,
+    private readonly pdfService: PdfService,
+  ) {}
 
   /**
    * POST /api/bookings
@@ -72,6 +78,24 @@ export class BookingsController {
   @Get(":id")
   findOne(@Param("id") id: string) {
     return this.bookingsService.findOne(id);
+  }
+
+  /**
+   * GET /api/bookings/:id/pdf
+   * Download booking invoice as PDF
+   */
+  @Get(":id/pdf")
+  async downloadPdf(@Param("id") id: string, @Res() res: Response) {
+    const booking = await this.bookingsService.findOne(id);
+    const pdfBuffer = await this.pdfService.generateInvoice(booking);
+
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="invoice-${id}.pdf"`,
+      "Content-Length": pdfBuffer.length,
+    });
+
+    res.end(pdfBuffer);
   }
 
   /**

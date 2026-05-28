@@ -47,4 +47,9 @@ export class SearchBookingDto {
   @IsOptional()
   @IsNumberString()
   limit?: string;
+
+  /** If "true", checks for overlapping bookings with fromDate and toDate */
+  @IsOptional()
+  @IsString()
+  overlap?: string;
 }

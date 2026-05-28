@@ -299,11 +299,43 @@ export class WhatsAppService implements OnApplicationShutdown {
     this.logger.log(`Message sent to ${mobileNumber}`);
   }
 
+  async sendPdf(
+    userId: string,
+    mobileNumber: string,
+    message: string,
+    base64Data: string,
+    filename: string,
+    mimetype: string,
+  ): Promise<void> {
+    const session = await this.whatsappSessionModel
+      .findOne({ userId })
+      .lean()
+      .exec();
+    const isConnected = this.client && session?.state === "connected";
+    if (!isConnected) {
+      this.initialize(userId).catch((err) =>
+        this.logger.error("Re-initialization during sendPdf failed:", err),
+      );
+      throw new BadRequestException(
+        "WhatsApp session is not active. A new QR code is being generated – please scan it and try again.",
+      );
+    }
+    const chatId = `91${mobileNumber}@c.us`;
+    try {
+      const media = new MessageMedia(mimetype, base64Data, filename);
+      await this.client.sendMessage(chatId, media);
+    } catch (err) {
+      this.logger.error(`Failed to send pdf message to ${mobileNumber}:`, err);
+      throw err;
+    }
+    this.logger.log(`PDF message sent to ${mobileNumber}`);
+  }
+
   /**
    * Logout: clears the RemoteAuth session from MongoDB and destroys the client.
    * After this the next initialize() call will generate a fresh QR code.
    */
-  async logout(userId:string): Promise<void> {
+  async logout(userId: string): Promise<void> {
     if (this.client) {
       try {
         // logout() asks RemoteAuth to delete its stored session
@@ -348,20 +380,20 @@ export class WhatsAppService implements OnApplicationShutdown {
       }
     }
 
-      await this.whatsappSessionModel
-        .deleteOne({ userId })
-        .exec()
-        .catch((err) =>
-          this.logger.error("Failed to delete WhatsApp session document:", err),
-        );
-        console.log('Whatsapp Session Logged out')
-      this.usersService
-        .setWhatsappSessionEnable(this.activeUserId, false)
-        .catch((err) =>
-          this.logger.error("Failed to clear isWhatsappSessionEnable", err),
-        );
-      this.activeUserId = null;
-    
+    await this.whatsappSessionModel
+      .deleteOne({ userId })
+      .exec()
+      .catch((err) =>
+        this.logger.error("Failed to delete WhatsApp session document:", err),
+      );
+    console.log("Whatsapp Session Logged out");
+    this.usersService
+      .setWhatsappSessionEnable(this.activeUserId, false)
+      .catch((err) =>
+        this.logger.error("Failed to clear isWhatsappSessionEnable", err),
+      );
+    this.activeUserId = null;
+
     this.statusSubject.next({ state: "idle", qr: null });
     this.logger.log("WhatsApp session logged out and cleared");
   }

@@ -78,6 +78,27 @@ export class WhatsAppController {
   }
 
   /**
+   * POST /api/whatsapp/send-pdf
+   * Body: { mobileNumber: string, message: string, fileBase64: string, filename: string, mimetype: string }
+   */
+  @Post("send-pdf")
+  @HttpCode(HttpStatus.OK)
+  async sendPdf(
+    @Request() req: { user: { id: string } },
+    @Body() dto: { mobileNumber: string; message: string; fileBase64: string; filename: string; mimetype: string },
+  ) {
+    await this.whatsappService.sendPdf(
+      req.user.id,
+      dto.mobileNumber,
+      dto.message,
+      dto.fileBase64,
+      dto.filename,
+      dto.mimetype,
+    );
+    return { message: "PDF sent successfully" };
+  }
+
+  /**
    * POST /api/whatsapp/logout
    * Destroys the active client and wipes the RemoteAuth session from MongoDB.
    * The next call to /initialize will generate a fresh QR code.
