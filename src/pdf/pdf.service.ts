@@ -6,6 +6,7 @@ import {
 import * as puppeteer from "puppeteer";
 import * as fs from "fs";
 import * as path from "path";
+import chromium from "@sparticuz/chromium";
 import { Booking } from "../bookings/schemas/booking.schema";
 
 @Injectable()
@@ -14,9 +15,17 @@ export class PdfService {
 
   async generateInvoice(booking: any): Promise<Buffer> {
     try {
+      const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+      const executablePath = isServerless ? await chromium.executablePath() : undefined;
+
       const browser = await puppeteer.launch({
+        ...(executablePath ? { executablePath } : {}),
         headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          ...(isServerless ? chromium.args : []),
+        ],
       });
       const page = await browser.newPage();
 
