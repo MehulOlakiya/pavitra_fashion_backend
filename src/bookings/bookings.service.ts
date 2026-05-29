@@ -46,76 +46,64 @@ export class BookingsService {
   }
 
   async create(dto: CreateBookingDto): Promise<BookingDocument> {
-    const orderId = `ORD-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
     const booking = new this.bookingModel({
       ...dto,
       orderId,
     });
     const saved = await booking.save();
+
+    // Maintain bidirectional relationship
+    if (dto.customer) {
+      await this.customerModel
+        .findByIdAndUpdate(dto.customer, {
+          $addToSet: { bookings: saved._id },
+          $inc: { totalBooking: 1 },
+        })
+        .exec();
+    }
+
     return saved.populate("customer");
   }
 
   async search(query: SearchBookingDto): Promise<PaginatedBookings> {
     const filter: FilterQuery<BookingDocument> = {};
 
-    // Resolve customer-based search by looking up matching customer IDs first
-    if (query.customerName || query.customerPhone) {
-      const customerFilter: FilterQuery<CustomerDocument> = { $or: [] };
-      if (query.customerName) {
-        customerFilter.$or!.push({
-          name: { $regex: query.customerName.trim(), $options: "i" },
-        });
+    if (query.customerId) {
+      filter.customer = query.customerId;
+    } else if (query.customerName || query.customerPhone || query.orderId || query.serialNumber) {
+      const orConditions: any[] = [];
+      
+      if (query.customerName || query.customerPhone) {
+        const customerFilter: FilterQuery<CustomerDocument> = { $or: [] };
+        if (query.customerName) {
+          customerFilter.$or!.push({ name: { $regex: query.customerName.trim(), $options: "i" } });
+        }
+        if (query.customerPhone) {
+          customerFilter.$or!.push({ mobileNumber: { $regex: query.customerPhone.trim(), $options: "i" } });
+        }
+        const matchingCustomers = await this.customerModel.find(customerFilter).select("_id").exec();
+        const customerIds = matchingCustomers.map((c) => c._id);
+        if (customerIds.length > 0) {
+          orConditions.push({ customer: { $in: customerIds } });
+        }
       }
-      if (query.customerPhone) {
-        customerFilter.$or!.push({
-          mobileNumber: { $regex: query.customerPhone.trim(), $options: "i" },
-        });
+
+      if (query.orderId) {
+        orConditions.push({ orderId: { $regex: query.orderId.trim(), $options: "i" } });
       }
-      const matchingCustomers = await this.customerModel
-        .find(customerFilter)
-        .select("_id")
-        .exec();
-      const customerIds = matchingCustomers.map((c) => c._id);
 
       if (query.serialNumber) {
-        // Both serial number and customer filters
-        filter.$and = [
-          {
-            $or: [
-              {
-                productSerialNumber: {
-                  $regex: query.serialNumber.trim(),
-                  $options: "i",
-                },
-              },
-              {
-                "items.serialNumber": {
-                  $regex: query.serialNumber.trim(),
-                  $options: "i",
-                },
-              },
-            ],
-          },
-          { customer: { $in: customerIds } },
-        ];
-      } else {
-        filter.customer = { $in: customerIds };
+        orConditions.push({ productSerialNumber: { $regex: query.serialNumber.trim(), $options: "i" } });
+        orConditions.push({ "items.serialNumber": { $regex: query.serialNumber.trim(), $options: "i" } });
       }
-    } else if (query.serialNumber) {
-      filter.$or = [
-        {
-          productSerialNumber: {
-            $regex: query.serialNumber.trim(),
-            $options: "i",
-          },
-        },
-        {
-          "items.serialNumber": {
-            $regex: query.serialNumber.trim(),
-            $options: "i",
-          },
-        },
-      ];
+
+      if (orConditions.length > 0) {
+        filter.$or = orConditions;
+      } else {
+        // Nothing matched the search query, force empty result
+        filter._id = null;
+      }
     }
 
     if (query.status) {
@@ -232,6 +220,14 @@ export class BookingsService {
   async remove(id: string): Promise<void> {
     const result = await this.bookingModel.findByIdAndDelete(id).exec();
     if (!result) throw new NotFoundException(`Booking "${id}" not found.`);
+
+    if (result.customer) {
+      await this.customerModel
+        .findByIdAndUpdate(result.customer, {
+          $pull: { bookings: result._id },
+        })
+        .exec();
+    }
   }
 
   async markBillSent(id: string): Promise<BookingDocument> {
@@ -244,7 +240,7 @@ export class BookingsService {
 
   /**
    * Called by the daily cron job.
-   * Finds all ACTIVE bookings whose returnDate falls on today (UTC calendar date)
+   * Finds all BOOKED or RENTED bookings whose returnDate falls on today (UTC calendar date)
    * and flips their status to PENDING_RETURN.
    * Returns the count of updated documents.
    */
@@ -276,7 +272,7 @@ export class BookingsService {
     const result = await this.bookingModel
       .updateMany(
         {
-          status: BookingStatus.ACTIVE,
+          status: { $in: [BookingStatus.BOOKED, BookingStatus.RENTED] },
           returnDate: { $gte: todayStart, $lte: todayEnd },
         },
         { $set: { status: BookingStatus.PENDING_RETURN } },
@@ -293,7 +289,8 @@ export class BookingsService {
     } = {},
   ): Promise<{
     total: number;
-    active: number;
+    booked: number;
+    rented: number;
     pending_return: number;
     returned: number;
     cancelled: number;
@@ -318,7 +315,8 @@ export class BookingsService {
 
     const result = {
       total: 0,
-      active: 0,
+      booked: 0,
+      rented: 0,
       pending_return: 0,
       returned: 0,
       cancelled: 0,
@@ -332,7 +330,7 @@ export class BookingsService {
   }
 
   /**
-   * Returns all distinct product serial numbers that have an ACTIVE or
+   * Returns all distinct product serial numbers that have a BOOKED, RENTED or
    * PENDING_RETURN booking overlapping the given [from, to] date range.
    */
   async getBookedSerials(from: Date, to: Date): Promise<string[]> {
@@ -341,7 +339,7 @@ export class BookingsService {
     toInclusive.setUTCDate(toInclusive.getUTCDate() + 1);
 
     const filter = {
-      status: { $in: [BookingStatus.ACTIVE, BookingStatus.PENDING_RETURN] },
+      status: { $in: [BookingStatus.BOOKED, BookingStatus.RENTED, BookingStatus.PENDING_RETURN] },
       bookingDate: { $lt: toInclusive },
       returnDate: { $gte: from },
     };

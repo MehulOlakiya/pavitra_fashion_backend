@@ -6,7 +6,8 @@ import { Product } from "../../products/schemas/product.schema";
 export type BookingDocument = Booking & Document;
 
 export enum BookingStatus {
-  ACTIVE = "active",
+  BOOKED = "booked",
+  RENTED = "rented",
   PENDING_RETURN = "pending_return",
   RETURNED = "returned",
   CANCELLED = "cancelled",
@@ -66,7 +67,7 @@ export class Booking {
   @Prop({ required: true })
   returnDate: Date;
 
-  @Prop({ enum: BookingStatus, default: BookingStatus.ACTIVE })
+  @Prop({ enum: BookingStatus, default: BookingStatus.BOOKED })
   status: BookingStatus;
 
   @Prop({ required: false, enum: BeltType })

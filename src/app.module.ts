@@ -10,6 +10,9 @@ import { TasksModule } from "./tasks/tasks.module";
 import { UploadModule } from "./upload/upload.module";
 import { WhatsAppModule } from "./whatsapp/whatsapp.module";
 import { CustomersModule } from "./customers/customers.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
+import { NotificationsModule } from './notifications/notifications.module';
+
 @Module({
   imports: [
     // Load .env file globally
@@ -35,6 +38,8 @@ import { CustomersModule } from "./customers/customers.module";
     UploadModule,
     WhatsAppModule,
     CustomersModule,
+    AnalyticsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

@@ -13,10 +13,20 @@ export class SearchBookingDto {
   @IsString()
   customerName?: string;
 
+  /** Search by exact customer ID */
+  @IsOptional()
+  @IsString()
+  customerId?: string;
+
   /** Search by product serial number (exact) */
   @IsOptional()
   @IsString()
   serialNumber?: string;
+
+  /** Search by order ID (exact) */
+  @IsOptional()
+  @IsString()
+  orderId?: string;
 
   /** Search by customer phone (partial) */
   @IsOptional()

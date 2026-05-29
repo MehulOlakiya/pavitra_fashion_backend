@@ -25,13 +25,27 @@ export class CustomersController {
   }
 
   @Get()
-  findAll(@Query("search") search?: string) {
-    return this.customersService.findAll(search);
+  findAll(
+    @Query("search") search?: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ) {
+    return this.customersService.findAll(search, page, limit);
+  }
+
+  @Get("analytics")
+  getAnalytics() {
+    return this.customersService.getAnalytics();
   }
 
   @Get(":id")
   findOne(@Param("id") id: string) {
     return this.customersService.findOne(id);
+  }
+
+  @Get(":id/insights")
+  getInsights(@Param("id") id: string) {
+    return this.customersService.getInsights(id);
   }
 
   @Patch(":id")
