@@ -2,6 +2,7 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { ValidationPipe } from "@nestjs/common";
 import { json, urlencoded } from "express";
+import { IoAdapter } from "@nestjs/platform-socket.io";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -17,6 +18,9 @@ async function bootstrap() {
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   });
+
+  // Enable WebSocket (Socket.IO) adapter
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   // Global validation pipe (strips unknown fields, transforms types)
   app.useGlobalPipes(
