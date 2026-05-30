@@ -78,8 +78,13 @@ export class ProductsController {
    * Returns active/inactive counts and distinct categories
    */
   @Get("analytics")
-  getAnalytics() {
-    return this.productsService.getAnalytics();
+  getAnalytics(
+    @Query("fromDate") fromDate?: string,
+    @Query("toDate") toDate?: string,
+  ) {
+    const start = fromDate ? new Date(fromDate) : undefined;
+    const end = toDate ? new Date(toDate) : undefined;
+    return this.productsService.getAnalytics(start, end);
   }
 
   /**

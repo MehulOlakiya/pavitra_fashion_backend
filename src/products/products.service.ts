@@ -88,14 +88,21 @@ export class ProductsService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async getAnalytics(): Promise<ProductAnalytics> {
+  async getAnalytics(startDate?: Date, endDate?: Date): Promise<ProductAnalytics> {
+    let matchStage: any = { isArchived: false };
+    if (startDate || endDate) {
+      matchStage.createdAt = {};
+      if (startDate) matchStage.createdAt.$gte = startDate;
+      if (endDate) matchStage.createdAt.$lte = endDate;
+    }
+
     const [groups, categories] = await Promise.all([
       this.productModel
         .aggregate<{
           _id: boolean;
           count: number;
         }>([
-          { $match: { isArchived: false } },
+          { $match: matchStage },
           { $group: { _id: "$isActive", count: { $sum: 1 } } },
         ])
         .exec(),

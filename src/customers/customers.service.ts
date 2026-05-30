@@ -13,16 +13,34 @@ export class CustomersService {
     @InjectModel(Booking.name) private bookingModel: Model<BookingDocument>,
   ) {}
 
-  async getAnalytics() {
+  async getAnalytics(startDate?: Date, endDate?: Date) {
+    let dateFilter: any = {};
+    if (startDate || endDate) {
+      dateFilter.createdAt = {};
+      if (startDate) dateFilter.createdAt.$gte = startDate;
+      if (endDate) dateFilter.createdAt.$lte = endDate;
+    }
+
     const total = await this.customerModel.countDocuments().exec();
-    
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-    const newThisMonth = await this.customerModel.countDocuments({ createdAt: { $gte: startOfMonth } }).exec();
+
+    let newInPeriodQuery: any;
+    if (startDate || endDate) {
+      newInPeriodQuery = dateFilter;
+    } else {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      newInPeriodQuery = { createdAt: { $gte: startOfMonth } };
+    }
+
+    const newThisMonth = await this.customerModel
+      .countDocuments(newInPeriodQuery)
+      .exec();
 
     // To find how many unique customers have active bookings (booked or rented)
-    const activeCustomers = await this.bookingModel.distinct('customer', { status: { $in: ['booked', 'rented'] } }).exec();
+    const activeCustomers = await this.bookingModel
+      .distinct("customer", { status: { $in: ["booked", "rented"] } })
+      .exec();
     const active = activeCustomers.length;
 
     return { total, active, newThisMonth };
@@ -37,7 +55,13 @@ export class CustomersService {
     search?: string,
     pageStr?: string,
     limitStr?: string,
-  ): Promise<{ data: Customer[]; total: number; page: number; limit: number; totalPages: number }> {
+  ): Promise<{
+    data: Customer[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const page = Math.max(1, parseInt(pageStr ?? "1", 10));
     const limit = Math.min(100, Math.max(1, parseInt(limitStr ?? "10", 10)));
     const skip = (page - 1) * limit;
@@ -87,9 +111,9 @@ export class CustomersService {
     const totalBookingsCount = customer.bookings.length;
 
     customer.bookings.forEach((b: any) => {
-      if (b.status !== 'cancelled') {
+      if (b.status !== "cancelled") {
         totalRevenue += (b.advancePayment || 0) + (b.remainingPayment || 0);
-        pendingPayment += (b.remainingPayment || 0);
+        pendingPayment += b.remainingPayment || 0;
       }
     });
 
@@ -101,8 +125,8 @@ export class CustomersService {
       analytics: {
         totalRevenue,
         pendingPayment,
-        totalBookingsCount
-      }
+        totalBookingsCount,
+      },
     };
   }
 
@@ -120,7 +144,9 @@ export class CustomersService {
   }
 
   async remove(id: string): Promise<Customer> {
-    const deletedCustomer = await this.customerModel.findByIdAndDelete(id).exec();
+    const deletedCustomer = await this.customerModel
+      .findByIdAndDelete(id)
+      .exec();
     if (!deletedCustomer) {
       throw new NotFoundException(`Customer with ID ${id} not found`);
     }

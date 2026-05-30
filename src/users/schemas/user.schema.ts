@@ -29,6 +29,15 @@ export class User {
   @Prop({ required: false })
   profileImage: string;
 
+  @Prop({ required: false })
+  phone: string;
+
+  @Prop({ required: false })
+  returnNotificationTime: string;
+
+  @Prop({ required: false })
+  pickupNotificationTime: string;
+
   @Prop({ default: false })
   isWhatsappSessionEnable: boolean;
 }

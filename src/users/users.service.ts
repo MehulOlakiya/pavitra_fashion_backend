@@ -35,4 +35,8 @@ export class UsersService {
       isWhatsappSessionEnable: enabled,
     });
   }
+
+  async update(userId: string, data: Partial<UserDocument>): Promise<UserDocument | null> {
+    return this.userModel.findByIdAndUpdate(userId, data, { new: true }).exec();
+  }
 }

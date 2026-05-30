@@ -34,8 +34,13 @@ export class CustomersController {
   }
 
   @Get("analytics")
-  getAnalytics() {
-    return this.customersService.getAnalytics();
+  getAnalytics(
+    @Query("fromDate") fromDate?: string,
+    @Query("toDate") toDate?: string,
+  ) {
+    const start = fromDate ? new Date(fromDate) : undefined;
+    const end = toDate ? new Date(toDate) : undefined;
+    return this.customersService.getAnalytics(start, end);
   }
 
   @Get(":id")
