@@ -56,7 +56,7 @@ export class CustomersService {
     pageStr?: string,
     limitStr?: string,
   ): Promise<{
-    data: Customer[];
+    data: any[];
     total: number;
     page: number;
     limit: number;
@@ -66,23 +66,58 @@ export class CustomersService {
     const limit = Math.min(100, Math.max(1, parseInt(limitStr ?? "10", 10)));
     const skip = (page - 1) * limit;
 
-    const filter: any = {};
+    const matchStage: any = {};
     if (search && search.trim()) {
       const regex = new RegExp(search.trim(), "i");
-      filter.$or = [{ name: regex }, { mobileNumber: regex }];
+      matchStage.$or = [{ name: regex }, { mobileNumber: regex }];
     }
 
-    const [data, total] = await Promise.all([
-      this.customerModel
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .exec(),
-      this.customerModel.countDocuments(filter).exec(),
+    const [result, totalCount] = await Promise.all([
+      this.customerModel.aggregate([
+        { $match: matchStage },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: "bookings",
+            localField: "_id",
+            foreignField: "customer",
+            as: "bookingDocs",
+          },
+        },
+        {
+          $addFields: {
+            totalBooking: { $size: "$bookingDocs" },
+            pendingPayment: {
+              $sum: {
+                $map: {
+                  input: {
+                    $filter: {
+                      input: "$bookingDocs",
+                      as: "b",
+                      cond: { $ne: ["$$b.status", "cancelled"] },
+                    },
+                  },
+                  as: "b",
+                  in: { $ifNull: ["$$b.remainingPayment", 0] },
+                },
+              },
+            },
+          },
+        },
+        { $project: { bookingDocs: 0 } },
+      ]),
+      this.customerModel.countDocuments(matchStage).exec(),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      data: result,
+      total: totalCount,
+      page,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
+    };
   }
 
   async findOne(id: string): Promise<Customer> {

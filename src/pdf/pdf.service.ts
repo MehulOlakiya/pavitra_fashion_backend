@@ -15,8 +15,11 @@ export class PdfService {
 
   async generateInvoice(booking: any): Promise<Buffer> {
     try {
-      const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
-      const executablePath = isServerless ? await chromium.executablePath() : undefined;
+      const isServerless =
+        !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+      const executablePath = isServerless
+        ? await chromium.executablePath()
+        : undefined;
 
       const browser = await puppeteer.launch({
         ...(executablePath ? { executablePath } : {}),
@@ -56,19 +59,6 @@ export class PdfService {
   }
 
   private getHtmlTemplate(booking: any): string {
-    // Load header image as base64
-    let headerImageBase64 = "";
-    try {
-      const imagePath = path.join(
-        process.cwd(),
-        "src/assets/invoice-header.png",
-      );
-      const imageBuffer = fs.readFileSync(imagePath);
-      headerImageBase64 = `data:image/png;base64,${imageBuffer.toString("base64")}`;
-    } catch (err) {
-      this.logger.warn("Could not load header image", err);
-    }
-
     const customer = booking.customer || {};
     const billGenerationDate = new Date().toLocaleDateString("en-IN", {
       day: "2-digit",
@@ -456,11 +446,25 @@ export class PdfService {
               <p>Village/city: ${customer.village || "N/A"}</p>
               <p>Mobile: ${customer.mobileNumber || "N/A"}</p>
             </div>
-            <div class="info-block" style="text-align: right; padding-top: 15px;">
-              <p style="margin-bottom: 8px;"><strong>Invoice no:</strong> &nbsp;&nbsp; ${invoiceNo}</p>
-              <p style="margin-bottom: 8px;"><strong>Date:</strong> &nbsp;&nbsp; ${billGenerationDate}</p>
-              <p style="font-size: 11px; margin-bottom: 2px;"><strong>Booking Date:</strong> &nbsp;&nbsp; ${bookingDateStr}</p>
-              <p style="font-size: 11px;"><strong>Return Date:</strong> &nbsp;&nbsp; ${returnDateStr}</p>
+            <div class="info-block" style="display: flex; align-items: flex-start; padding-top: 15px; margin-left: auto;">
+              <table style="border-collapse: collapse; font-size: 12px; margin-left: auto;">
+                <tr>
+                  <td style="font-weight: 700; text-align: left; white-space: nowrap; padding: 4px 12px 4px 0; vertical-align: middle;">Invoice no:</td>
+                  <td style="text-align: left; white-space: nowrap; padding: 4px 0; vertical-align: middle;">${invoiceNo}</td>
+                </tr>
+                <tr>
+                  <td style="font-weight: 700; text-align: left; white-space: nowrap; padding: 4px 12px 4px 0; vertical-align: middle;">Date:</td>
+                  <td style="text-align: left; white-space: nowrap; padding: 4px 0; vertical-align: middle;">${billGenerationDate}</td>
+                </tr>
+                <tr>
+                  <td style="font-weight: 700; text-align: left; white-space: nowrap; padding: 4px 12px 4px 0; vertical-align: middle;">Booking Date:</td>
+                  <td style="text-align: left; white-space: nowrap; padding: 4px 0; vertical-align: middle;">${bookingDateStr}</td>
+                </tr>
+                <tr>
+                  <td style="font-weight: 700; text-align: left; white-space: nowrap; padding: 4px 12px 4px 0; vertical-align: middle;">Return Date:</td>
+                  <td style="text-align: left; white-space: nowrap; padding: 4px 0; vertical-align: middle;">${returnDateStr}</td>
+                </tr>
+              </table>
             </div>
           </div>
 
@@ -486,8 +490,8 @@ export class PdfService {
           <div class="totals-wrapper">
             <div class="payment-info">
               <h4>Payment</h4>
-              <p>Advance Payment: ₹${advancePayment}</p>
-              <p>Remaining Payment: ₹${remainingPayment}</p>
+              <p><strong>Advance Payment: ₹${advancePayment}</strong></p>
+              <p><strong>Remaining Payment: ₹${remainingPayment}</strong></p>
             </div>
             
             <table class="totals-table">
@@ -520,7 +524,11 @@ export class PdfService {
             </div>
           </div>
 
-
+          <!-- Thank You Footer -->
+          <div style="margin-top: 30px; text-align: center; border-top: 2px solid #546FFF; padding-top: 20px;">
+            <p style="font-size: 22px; font-weight: 800; color: #546FFF; margin: 0 0 6px 0; letter-spacing: 1px;">Thank You for Shopping!</p>
+            <p style="font-size: 12px; color: #888; margin: 0;">We appreciate your trust in Pavitra Fashion. We look forward to serving you again.</p>
+          </div>
 
         </div>
       </body>
