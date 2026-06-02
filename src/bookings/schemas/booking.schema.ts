@@ -61,6 +61,9 @@ export class Booking {
   @Prop({ required: false, min: 0 })
   remainingPayment: number;
 
+  @Prop({ required: false, min: 0 })
+  totalPayment: number;
+
   @Prop({ required: true })
   bookingDate: Date;
 

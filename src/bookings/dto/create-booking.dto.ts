@@ -64,6 +64,11 @@ export class CreateBookingDto {
   @Min(0)
   remainingPayment?: number;
 
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  totalPayment?: number;
+
   @IsDateString()
   bookingDate: string;
 
