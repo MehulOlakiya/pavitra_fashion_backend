@@ -81,7 +81,7 @@ export class PdfService {
         year: "numeric",
       },
     );
-    const invoiceNo = booking._id.toString().slice(-6).toUpperCase();
+    const invoiceNo = booking?.orderId.split("-")[1];
 
     // Map items
     const items =
@@ -137,13 +137,13 @@ export class PdfService {
 
       itemsHtml += `
         <tr>
-          <td>${rowIndex++}</td>
-          <td>${name}</td>
-          <td>${beltText}</td>
-          <td>${freshPieceText}</td>
-          <td>${qty}</td>
-          <td>₹${price}</td>
-          <td>₹${total}</td>
+          <td class="center">${rowIndex++}</td>
+          <td class="item-name">${name}</td>
+          <td class="center">${beltText}</td>
+          <td class="center">${freshPieceText}</td>
+          <td class="center">${qty}</td>
+          <td class="right">₹${price}</td>
+          <td class="right">₹${total}</td>
         </tr>
       `;
     });
@@ -167,42 +167,65 @@ export class PdfService {
         <meta charset="utf-8">
         <title>Invoice</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Great+Vibes&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
           
+          :root {
+            --primary: #546FFF;
+            --primary-light: #EEF2FF;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --border-color: #E2E8F0;
+            --bg-light: #F8FAFC;
+          }
+
           body {
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 0;
-            color: #1a1a1a;
+            color: var(--text-main);
             background: #fff;
-          }
-          .container {
-            padding: 30px 40px;
+            -webkit-print-color-adjust: exact;
           }
           
-          /* Header / Logo Section */
-          .top-header {
+          .container {
+            padding: 40px 50px;
+            max-width: 800px;
+            margin: 0 auto;
+          }
+          
+          /* Header */
+          .header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid var(--primary-light);
           }
+          
+          .header-left {
+            max-width: 60%;
+          }
+          
           .logo-area {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 16px;
+            margin-bottom: 20px;
           }
+          
           .logo-mark {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 4px;
-            transform: skewX(-15deg);
-            width: 44px;
+            transform: skewX(-10deg);
+            width: 40px;
           }
           .logo-mark div {
-            width: 20px;
-            height: 20px;
-            background: #546FFF;
+            width: 18px;
+            height: 18px;
+            background: var(--primary);
+            border-radius: 2px;
           }
           .logo-mark div:nth-child(2) {
             background: #8499FF;
@@ -211,323 +234,418 @@ export class PdfService {
           .logo-mark div:nth-child(3) {
             margin-top: -8px;
           }
-          .logo-text {
+          
+          .logo-text h1 {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            color: var(--primary);
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
             line-height: 1.1;
           }
-          .logo-text h1 {
-            margin: 0;
-            color: #546FFF;
-            font-size: 28px;
-            font-weight: 800;
-            letter-spacing: 1px;
-          }
           .logo-text p {
+            font-family: 'Poppins', sans-serif;
             margin: 0;
-            font-size: 10px;
-            color: #1a1a1a;
+            font-size: 11px;
+            color: var(--text-muted);
             letter-spacing: 2px;
+            font-weight: 600;
           }
-
-          /* Invoice Title */
+          
+          .company-details-table {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-muted);
+            border-collapse: collapse;
+          }
+          .company-details-table td {
+            vertical-align: top;
+            padding: 2px 8px 2px 0;
+          }
+          .company-details-table strong {
+            color: var(--text-main);
+            font-weight: 600;
+            white-space: nowrap;
+          }
+          
+          /* Header Right */
+          .header-right {
+            text-align: right;
+          }
+          
           .invoice-title {
-            display: flex;
-            align-items: center;
-            margin-bottom: 40px;
-          }
-          .invoice-title-box {
-            width: 40px;
-            height: 32px;
-            background-color: #546FFF;
-            margin-right: 15px;
-          }
-          .invoice-title h2 {
-            margin: 0;
-            font-size: 32px;
+            font-family: 'Poppins', sans-serif;
+            margin: 0 0 15px 0;
+            font-size: 36px;
             font-weight: 800;
             letter-spacing: 2px;
+            color: var(--primary);
           }
-
-          /* Info Section */
-          .info-section {
+          
+          .invoice-meta {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: left;
+            background: var(--bg-light);
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            min-width: 180px;
+          }
+          
+          /* Customer Section */
+          .customer-section {
             display: flex;
             justify-content: space-between;
             margin-bottom: 40px;
+            gap: 20px;
           }
-          .info-block p {
+          
+          .section-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0 0 12px 0;
+          }
+          
+          .bill-to, .booking-details {
+            flex: 1;
+          }
+          
+          .booking-details {
+            background: var(--primary-light);
+            padding: 16px 20px;
+            border-radius: 8px;
+          }
+          
+          .customer-name {
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 0 0 6px 0;
+            text-transform: capitalize;
+          }
+          
+          .bill-to p {
             margin: 4px 0;
             font-size: 13px;
-            color: #444;
+            color: var(--text-muted);
           }
-          .info-block strong {
-            color: #1a1a1a;
+          
+          .meta-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 6px;
+          }
+          .meta-item:last-child {
+            margin-bottom: 0;
+          }
+          .meta-item span {
+            color: var(--text-muted);
+          }
+          .meta-item strong {
+            color: var(--text-main);
             font-weight: 600;
           }
-
+          
           /* Table */
-          .table {
+          .table-wrapper {
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            margin-bottom: 30px;
+          }
+          
+          .modern-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
           }
-          .table thead th {
-            border-top: 2px solid #546FFF;
-            border-bottom: 2px solid #546FFF;
-            padding: 12px 10px;
-            text-align: left;
-            font-size: 13px;
-            font-weight: 800;
+          
+          .modern-table thead {
+            background: var(--bg-light);
+          }
+          
+          .modern-table th {
+            padding: 12px 16px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
           }
-          .table tbody td {
-            padding: 16px 10px;
+          
+          .modern-table td {
+            padding: 14px 16px;
             font-size: 13px;
-            border-bottom: 1px dashed #ccc;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border-color);
           }
-          .table tbody td:nth-child(3),
-          .table tbody td:nth-child(4),
-          .table tbody td:nth-child(5),
-          .table tbody td:nth-child(6) {
+          
+          .modern-table tr:last-child td {
+            border-bottom: none;
+          }
+          
+          .modern-table th.center, .modern-table td.center {
             text-align: center;
           }
-          .table tbody td:nth-child(7) {
+          
+          .modern-table th.right, .modern-table td.right {
             text-align: right;
           }
-
-          /* Totals Layout */
+          
+          .item-name {
+            font-weight: 600;
+            color: var(--text-main);
+          }
+          
+          /* Totals Section */
           .totals-wrapper {
             display: flex;
             justify-content: space-between;
-            margin-top: 20px;
-            margin-bottom: 20px;
-          }
-          .payment-info {
-            width: 50%;
-            padding-right: 20px;
-          }
-          .payment-info h4 {
-            margin: 0 0 10px 0;
-            font-size: 16px;
-            font-weight: 800;
-          }
-          .payment-info p {
-            margin: 4px 0;
-            font-size: 13px;
-            color: #666;
+            align-items: flex-start;
+            margin-bottom: 40px;
           }
           
-          .totals-table {
-            width: 40%;
-            border-collapse: collapse;
+          .payment-info {
+            width: 45%;
+            background: var(--bg-light);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
           }
-          .totals-table td {
-            padding: 6px 10px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #1a1a1a;
-          }
-          .grand-total {
-            background-color: #546FFF;
-            color: #fff !important;
-          }
-          .grand-total td {
-            color: #fff;
+          
+          .payment-info h4 {
+            font-family: 'Poppins', sans-serif;
+            margin: 0 0 12px 0;
+            font-size: 14px;
             font-weight: 700;
-            padding: 12px 10px;
-            font-size: 15px;
+            color: var(--text-main);
           }
-
-          /* Terms and Signature */
-          .terms-signature {
+          
+          .totals-box {
+            width: 45%;
+          }
+          
+          .totals-row {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 30px;
+            padding: 10px 16px;
+            font-size: 14px;
+            color: var(--text-muted);
           }
+          
+          .totals-row strong {
+            color: var(--text-main);
+            font-weight: 600;
+          }
+          
+          .grand-total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 16px;
+            margin-top: 8px;
+            background: var(--primary);
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Poppins', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            box-shadow: 0 4px 6px -1px rgba(84, 111, 255, 0.2);
+          }
+          
+          .grand-total-row strong {
+            color: #fff;
+          }
+          
+          /* Footer */
+          .footer {
+            margin-top: 40px;
+            border-top: 2px solid var(--primary-light);
+            padding-top: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+          }
+          
           .terms {
-            width: 100%;
+            max-width: 60%;
           }
+          
           .terms h4 {
-            margin: 0 0 10px 0;
-            font-size: 15px;
-            font-weight: 800;
+            font-family: 'Poppins', sans-serif;
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-main);
           }
+          
           .terms p {
             margin: 0;
-            font-size: 12px;
-            color: #666;
-            line-height: 1.5;
-          }
-
-          /* Header Contact */
-          .header-contact {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-          }
-          .header-contact-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-          }
-          .header-icon {
-            color: #546FFF;
-            width: 16px;
-            height: 16px;
-          }
-          .header-contact-text h5 {
-            margin: 0;
-            color: #546FFF;
             font-size: 11px;
-            font-weight: 700;
-            line-height: 1.2;
+            color: var(--text-muted);
+            line-height: 1.6;
           }
-          .header-contact-text p {
+          
+          .thank-you {
+            text-align: right;
+          }
+          
+          .thank-you p.title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 0 0 4px 0;
+          }
+          
+          .thank-you p.subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
             margin: 0;
-            font-size: 10px;
-            color: #444;
           }
         </style>
       </head>
       <body>
         <div class="container">
-          <!-- Top Header -->
-          <div class="top-header">
-            <div class="logo-area">
-              <div class="logo-mark">
-                <div></div><div></div><div></div><div></div>
-              </div>
-              <div class="logo-text">
-                <h1>PAVITRA<br>FASHION</h1>
-                <p>SALES & RENTALS</p>
-              </div>
-            </div>
-            <div class="header-contact">
-              <div class="header-contact-item">
-                <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line>
-                </svg>
-                <div class="header-contact-text">
-                  <h5>Phone</h5>
-                  <p>7202863032</p>
+          <!-- Header -->
+          <header class="header">
+            <div class="header-left">
+              <div class="logo-area">
+                <div class="logo-mark">
+                  <div></div><div></div><div></div><div></div>
+                </div>
+                <div class="logo-text">
+                  <h1>PAVITRA FASHION</h1>
+                  <p>SALES & RENTALS</p>
                 </div>
               </div>
-              <div class="header-contact-item">
-                <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline>
-                </svg>
-                <div class="header-contact-text">
-                  <h5>Mail</h5>
-                  <p>pavitra.fashion@gmail.com</p>
-                </div>
-              </div>
-              <div class="header-contact-item">
-                <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>
-                </svg>
-                <div class="header-contact-text">
-                  <h5>Address</h5>
-                  <p>Pavitra fashion, sardhar</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Title -->
-          <div class="invoice-title">
-            <div class="invoice-title-box"></div>
-            <h2>INVOICE</h2>
-          </div>
-          
-          <!-- Info Section -->
-          <div class="info-section">
-            <div class="info-block">
-              <p style="font-size: 14px; font-weight: 800; margin-bottom: 8px;">To</p>
-              <p style="font-size: 18px; font-weight: 800; text-transform: uppercase;">${customer.name || "Unknown Customer"}</p>
-              <p>Village/city: ${customer.village || "N/A"}</p>
-              <p>Mobile: ${customer.mobileNumber || "N/A"}</p>
-            </div>
-            <div class="info-block" style="display: flex; align-items: flex-start; padding-top: 15px; margin-left: auto;">
-              <table style="border-collapse: collapse; font-size: 12px; margin-left: auto;">
+              <table class="company-details-table">
                 <tr>
-                  <td style="font-weight: 700; text-align: left; white-space: nowrap; padding: 4px 12px 4px 0; vertical-align: middle;">Invoice no:</td>
-                  <td style="text-align: left; white-space: nowrap; padding: 4px 0; vertical-align: middle;">${invoiceNo}</td>
+                  <td><strong>Address:</strong></td>
+                  <td>Pavitra fashion, Kashipara plazza, near bus stand, sardhar - 360025</td>
                 </tr>
                 <tr>
-                  <td style="font-weight: 700; text-align: left; white-space: nowrap; padding: 4px 12px 4px 0; vertical-align: middle;">Date:</td>
-                  <td style="text-align: left; white-space: nowrap; padding: 4px 0; vertical-align: middle;">${billGenerationDate}</td>
+                  <td><strong>Phone:</strong></td>
+                  <td>9023908281 &nbsp;|&nbsp; <strong>Mail:</strong> pavitrafashionsardhar@gmail.com</td>
                 </tr>
                 <tr>
-                  <td style="font-weight: 700; text-align: left; white-space: nowrap; padding: 4px 12px 4px 0; vertical-align: middle;">Booking Date:</td>
-                  <td style="text-align: left; white-space: nowrap; padding: 4px 0; vertical-align: middle;">${bookingDateStr}</td>
-                </tr>
-                <tr>
-                  <td style="font-weight: 700; text-align: left; white-space: nowrap; padding: 4px 12px 4px 0; vertical-align: middle;">Return Date:</td>
-                  <td style="text-align: left; white-space: nowrap; padding: 4px 0; vertical-align: middle;">${returnDateStr}</td>
+                  <td><strong>GSTIN:</strong></td>
+                  <td>24JAPPS495B1ZA</td>
                 </tr>
               </table>
+            </div>
+            <div class="header-right">
+              <h2 class="invoice-title">INVOICE</h2>
+              <div class="invoice-meta">
+                <div class="meta-item">
+                  <span>Invoice No:</span>
+                  <strong>${invoiceNo}</strong>
+                </div>
+                <div class="meta-item">
+                  <span>Issue Date:</span>
+                  <strong>${billGenerationDate}</strong>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <!-- Customer Section -->
+          <div class="customer-section">
+            <div class="bill-to">
+              <h3 class="section-title">Bill To</h3>
+              <p class="customer-name">${customer.name || "Unknown Customer"}</p>
+              <p>${customer.village || "N/A"}</p>
+              <p>Mobile: ${customer.mobileNumber || "N/A"}</p>
+            </div>
+            <div class="booking-details">
+              <h3 class="section-title" style="color: var(--primary)">Booking Details</h3>
+              <div class="meta-item">
+                <span>Booking Date:</span>
+                <strong>${bookingDateStr}</strong>
+              </div>
+              <div class="meta-item" style="margin-top: 8px;">
+                <span>Return Date:</span>
+                <strong>${returnDateStr}</strong>
+              </div>
             </div>
           </div>
 
           <!-- Table -->
-          <table class="table">
-            <thead>
-              <tr>
-                <th width="5%">NO</th>
-                <th width="35%">DESCRIPTION</th>
-                <th width="10%" style="text-align: center;">BELT</th>
-                <th width="15%" style="text-align: center;">FRESH PIECE</th>
-                <th width="10%" style="text-align: center;">QTY</th>
-                <th width="12%" style="text-align: center;">PRICE</th>
-                <th width="13%" style="text-align: right;">TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsHtml}
-            </tbody>
-          </table>
+          <div class="table-wrapper">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th width="5%" class="center">#</th>
+                  <th width="35%">Description</th>
+                  <th width="12%" class="center">Belt</th>
+                  <th width="15%" class="center">Fresh Piece</th>
+                  <th width="8%" class="center">Qty</th>
+                  <th width="12%" class="right">Price</th>
+                  <th width="13%" class="right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+          </div>
 
           <!-- Totals Layout -->
           <div class="totals-wrapper">
             <div class="payment-info">
-              <h4>Payment</h4>
-              <p><strong>Advance Payment: ₹${advancePayment}</strong></p>
-              <p><strong>Remaining Payment: ₹${remainingPayment}</strong></p>
+              <h4>Payment Status</h4>
+              <div class="meta-item">
+                <span>Advance Payment:</span>
+                <strong>₹${advancePayment}</strong>
+              </div>
+              <div class="meta-item" style="margin-top: 8px;">
+                <span>Remaining Payment:</span>
+                <strong style="color: var(--primary)">₹${remainingPayment}</strong>
+              </div>
             </div>
             
-            <table class="totals-table">
-              <tr>
-                <td>Sub Total</td>
-                <td style="text-align: right;">₹${subTotal}</td>
-              </tr>
+            <div class="totals-box">
+              <div class="totals-row">
+                <span>Subtotal</span>
+                <strong>₹${subTotal}</strong>
+              </div>
               ${
                 discount > 0
                   ? `
-              <tr>
-                <td>Discount</td>
-                <td style="text-align: right;">₹${discount}</td>
-              </tr>
+              <div class="totals-row">
+                <span>Discount</span>
+                <strong>- ₹${discount}</strong>
+              </div>
               `
                   : ""
               }
-              <tr class="grand-total">
-                <td>GRAND TOTAL</td>
-                <td style="text-align: right;">₹${grandTotal}</td>
-              </tr>
-            </table>
-          </div>
-
-          <!-- Terms & Signature -->
-          <div class="terms-signature">
-            <div class="terms">
-              <h4>Term and Conditions :</h4>
-              <p>Please send payment within 30 days of<br>receiving this invoice. There will be 10% interest<br>charge per month on late invoice.</p>
+              <div class="grand-total-row">
+                <span>Grand Total</span>
+                <strong>₹${grandTotal}</strong>
+              </div>
             </div>
           </div>
 
-          <!-- Thank You Footer -->
-          <div style="margin-top: 30px; text-align: center; border-top: 2px solid #546FFF; padding-top: 20px;">
-            <p style="font-size: 22px; font-weight: 800; color: #546FFF; margin: 0 0 6px 0; letter-spacing: 1px;">Thank You for Shopping!</p>
-            <p style="font-size: 12px; color: #888; margin: 0;">We appreciate your trust in Pavitra Fashion. We look forward to serving you again.</p>
+          <!-- Footer -->
+          <div class="footer">
+            <div class="terms">
+              <h4>Terms & Conditions</h4>
+              <p>Please send payment within 30 days of receiving this invoice.<br>There will be 10% interest charge per month on late invoice.</p>
+            </div>
+            <div class="thank-you">
+              <p class="title">Thank You!</p>
+              <p class="subtitle">We appreciate your business.</p>
+            </div>
           </div>
 
         </div>

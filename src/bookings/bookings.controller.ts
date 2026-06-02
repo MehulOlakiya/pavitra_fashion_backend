@@ -91,7 +91,7 @@ export class BookingsController {
 
     res.set({
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="invoice-${id}.pdf"`,
+      "Content-Disposition": `attachment; filename="invoice-${booking.orderId?.split("-")[1]}.pdf"`,
       "Content-Length": pdfBuffer.length,
     });
 
