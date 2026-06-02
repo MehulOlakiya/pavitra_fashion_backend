@@ -58,6 +58,7 @@ export class ProductsService {
       limit?: number;
       category?: string;
       search?: string;
+      serialNumbers?: string[];
     } = {},
   ): Promise<PaginatedProducts> {
     const page = Math.max(1, params.page ?? 1);
@@ -73,6 +74,9 @@ export class ProductsService {
         { serialNumber: regex },
         { category: regex },
       ];
+    }
+    if (params.serialNumbers && params.serialNumbers.length > 0) {
+      filter["serialNumber"] = { $in: params.serialNumbers };
     }
 
     const [data, total] = await Promise.all([

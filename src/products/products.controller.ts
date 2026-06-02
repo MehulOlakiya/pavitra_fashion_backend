@@ -97,12 +97,14 @@ export class ProductsController {
     @Query("limit") limit?: string,
     @Query("category") category?: string,
     @Query("search") search?: string,
+    @Query("serialNumbers") serialNumbers?: string,
   ) {
     return this.productsService.findAll({
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       category,
       search,
+      serialNumbers: serialNumbers ? serialNumbers.split(",").map(s => s.trim()) : undefined,
     });
   }
 
