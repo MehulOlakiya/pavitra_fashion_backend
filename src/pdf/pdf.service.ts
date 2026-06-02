@@ -170,8 +170,8 @@ export class PdfService {
           @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
           
           :root {
-            --primary: #546FFF;
-            --primary-light: #EEF2FF;
+            --primary: #0061A6;
+            --primary-light: #E6F0F7;
             --text-main: #0F172A;
             --text-muted: #64748B;
             --border-color: #E2E8F0;
@@ -188,7 +188,7 @@ export class PdfService {
           }
           
           .container {
-            padding: 40px 50px;
+            padding: 40px;
             max-width: 800px;
             margin: 0 auto;
           }
@@ -198,9 +198,9 @@ export class PdfService {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 40px;
-            padding-bottom: 30px;
-            border-bottom: 2px solid var(--primary-light);
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 2px solid var(--primary);
           }
           
           .header-left {
@@ -211,7 +211,7 @@ export class PdfService {
             display: flex;
             align-items: center;
             gap: 16px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
           }
           
           .logo-mark {
@@ -228,7 +228,7 @@ export class PdfService {
             border-radius: 2px;
           }
           .logo-mark div:nth-child(2) {
-            background: #8499FF;
+            background: #4DA1E6;
             margin-top: 8px;
           }
           .logo-mark div:nth-child(3) {
@@ -261,7 +261,7 @@ export class PdfService {
           }
           .company-details-table td {
             vertical-align: top;
-            padding: 2px 8px 2px 0;
+            padding: 2px 12px 2px 0;
           }
           .company-details-table strong {
             color: var(--text-main);
@@ -276,7 +276,7 @@ export class PdfService {
           
           .invoice-title {
             font-family: 'Poppins', sans-serif;
-            margin: 0 0 15px 0;
+            margin: 0 0 12px 0;
             font-size: 36px;
             font-weight: 800;
             letter-spacing: 2px;
@@ -284,73 +284,87 @@ export class PdfService {
           }
           
           .invoice-meta {
-            display: inline-flex;
-            flex-direction: column;
-            gap: 8px;
-            text-align: left;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            row-gap: 8px;
+            column-gap: 16px;
+            text-align: right;
             background: var(--bg-light);
-            padding: 12px 16px;
+            padding: 16px;
             border-radius: 8px;
             border: 1px solid var(--border-color);
-            min-width: 180px;
+            min-width: 220px;
           }
           
+          .invoice-meta span {
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 500;
+            text-align: left;
+          }
+          
+          .invoice-meta strong {
+            color: var(--text-main);
+            font-size: 13px;
+            font-weight: 600;
+            text-align: right;
+          }
+
+
           /* Customer Section */
           .customer-section {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 40px;
+            margin-bottom: 24px;
             gap: 20px;
           }
           
           .section-title {
             font-family: 'Poppins', sans-serif;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
-            color: var(--text-muted);
+            color: var(--primary);
             text-transform: uppercase;
             letter-spacing: 1px;
             margin: 0 0 12px 0;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
           }
           
-          .bill-to, .booking-details {
+          .info-card {
             flex: 1;
-          }
-          
-          .booking-details {
-            background: var(--primary-light);
-            padding: 16px 20px;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
+            padding: 16px;
           }
           
           .customer-name {
             font-family: 'Poppins', sans-serif;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
             color: var(--text-main);
-            margin: 0 0 6px 0;
+            margin: 0 0 4px 0;
             text-transform: capitalize;
           }
           
-          .bill-to p {
-            margin: 4px 0;
+          .info-card p {
+            margin: 2px 0;
             font-size: 13px;
             color: var(--text-muted);
           }
           
-          .meta-item {
-            display: flex;
-            justify-content: space-between;
+          .grid-details {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            row-gap: 6px;
+            column-gap: 12px;
             font-size: 13px;
-            margin-bottom: 6px;
           }
-          .meta-item:last-child {
-            margin-bottom: 0;
-          }
-          .meta-item span {
+          .grid-details span {
             color: var(--text-muted);
           }
-          .meta-item strong {
+          .grid-details strong {
             color: var(--text-main);
             font-weight: 600;
           }
@@ -359,8 +373,8 @@ export class PdfService {
           .table-wrapper {
             border-radius: 8px;
             overflow: hidden;
-            border: 1px solid var(--border-color);
-            margin-bottom: 30px;
+            border: 1px solid var(--primary);
+            margin-bottom: 24px;
           }
           
           .modern-table {
@@ -369,23 +383,22 @@ export class PdfService {
           }
           
           .modern-table thead {
-            background: var(--bg-light);
+            background: var(--primary);
           }
           
           .modern-table th {
             padding: 12px 16px;
             font-family: 'Poppins', sans-serif;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
-            color: var(--text-muted);
+            color: #fff;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             text-align: left;
-            border-bottom: 1px solid var(--border-color);
           }
           
           .modern-table td {
-            padding: 14px 16px;
+            padding: 12px 16px;
             font-size: 13px;
             color: var(--text-main);
             border-bottom: 1px solid var(--border-color);
@@ -411,35 +424,22 @@ export class PdfService {
           /* Totals Section */
           .totals-wrapper {
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 40px;
-          }
-          
-          .payment-info {
-            width: 45%;
-            background: var(--bg-light);
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-          }
-          
-          .payment-info h4 {
-            font-family: 'Poppins', sans-serif;
-            margin: 0 0 12px 0;
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--text-main);
+            justify-content: flex-end;
+            margin-bottom: 32px;
           }
           
           .totals-box {
-            width: 45%;
+            width: 350px;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
           }
           
           .totals-row {
             display: flex;
             justify-content: space-between;
-            padding: 10px 16px;
+            padding: 6px 0;
             font-size: 14px;
             color: var(--text-muted);
           }
@@ -449,29 +449,39 @@ export class PdfService {
             font-weight: 600;
           }
           
-          .grand-total-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 16px;
-            margin-top: 8px;
-            background: var(--primary);
-            border-radius: 8px;
-            color: #fff;
-            font-family: 'Poppins', sans-serif;
-            font-size: 16px;
-            font-weight: 700;
-            box-shadow: 0 4px 6px -1px rgba(84, 111, 255, 0.2);
+          .totals-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 8px 0;
           }
           
-          .grand-total-row strong {
+          .grand-total-card {
+            background: var(--primary);
+            border-radius: 6px;
+            padding: 16px;
+            margin-top: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             color: #fff;
+          }
+          
+          .grand-total-card span {
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+          }
+          
+          .grand-total-card strong {
+            font-family: 'Poppins', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
           }
           
           /* Footer */
           .footer {
-            margin-top: 40px;
             border-top: 2px solid var(--primary-light);
-            padding-top: 30px;
+            padding-top: 24px;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
@@ -484,7 +494,7 @@ export class PdfService {
           .terms h4 {
             font-family: 'Poppins', sans-serif;
             margin: 0 0 8px 0;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 700;
             color: var(--text-main);
           }
@@ -509,7 +519,7 @@ export class PdfService {
           }
           
           .thank-you p.subtitle {
-            font-size: 11px;
+            font-size: 12px;
             color: var(--text-muted);
             margin: 0;
           }
@@ -547,33 +557,34 @@ export class PdfService {
             <div class="header-right">
               <h2 class="invoice-title">INVOICE</h2>
               <div class="invoice-meta">
-                <div class="meta-item">
-                  <span>Invoice No:</span>
-                  <strong>${invoiceNo}</strong>
-                </div>
-                <div class="meta-item">
-                  <span>Issue Date:</span>
-                  <strong>${billGenerationDate}</strong>
-                </div>
+                <span>Invoice No:</span>
+                <strong>${invoiceNo}</strong>
+                
+                <span>Issue Date:</span>
+                <strong>${billGenerationDate}</strong>
               </div>
             </div>
           </header>
 
-          <!-- Customer Section -->
+          <!-- Customer & Booking Section -->
           <div class="customer-section">
-            <div class="bill-to">
+            <div class="info-card">
               <h3 class="section-title">Bill To</h3>
               <p class="customer-name">${customer.name || "Unknown Customer"}</p>
-              <p>${customer.village || "N/A"}</p>
-              <p>Mobile: ${customer.mobileNumber || "N/A"}</p>
+              <div class="grid-details" style="margin-top: 8px;">
+                <span>Location:</span>
+                <strong>${customer.village || "N/A"}</strong>
+                
+                <span>Mobile:</span>
+                <strong>${customer.mobileNumber || "N/A"}</strong>
+              </div>
             </div>
-            <div class="booking-details">
-              <h3 class="section-title" style="color: var(--primary)">Booking Details</h3>
-              <div class="meta-item">
+            <div class="info-card">
+              <h3 class="section-title">Booking Details</h3>
+              <div class="grid-details">
                 <span>Booking Date:</span>
                 <strong>${bookingDateStr}</strong>
-              </div>
-              <div class="meta-item" style="margin-top: 8px;">
+                
                 <span>Return Date:</span>
                 <strong>${returnDateStr}</strong>
               </div>
@@ -600,20 +611,8 @@ export class PdfService {
             </table>
           </div>
 
-          <!-- Totals Layout -->
+          <!-- Totals -->
           <div class="totals-wrapper">
-            <div class="payment-info">
-              <h4>Payment Status</h4>
-              <div class="meta-item">
-                <span>Advance Payment:</span>
-                <strong>₹${advancePayment}</strong>
-              </div>
-              <div class="meta-item" style="margin-top: 8px;">
-                <span>Remaining Payment:</span>
-                <strong style="color: var(--primary)">₹${remainingPayment}</strong>
-              </div>
-            </div>
-            
             <div class="totals-box">
               <div class="totals-row">
                 <span>Subtotal</span>
@@ -629,7 +628,17 @@ export class PdfService {
               `
                   : ""
               }
-              <div class="grand-total-row">
+              <div class="totals-divider"></div>
+              <div class="totals-row">
+                <span>Advance Paid</span>
+                <strong>₹${advancePayment}</strong>
+              </div>
+              <div class="totals-row">
+                <span>Balance Due</span>
+                <strong>₹${remainingPayment}</strong>
+              </div>
+              
+              <div class="grand-total-card">
                 <span>Grand Total</span>
                 <strong>₹${grandTotal}</strong>
               </div>
