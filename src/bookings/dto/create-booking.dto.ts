@@ -11,7 +11,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
-import { BookingStatus, BeltType } from "../schemas/booking.schema";
+import { BookingStatus, BeltType, TimeOfDay } from "../schemas/booking.schema";
 
 export class BookingItemDto {
   @IsString()
@@ -38,6 +38,11 @@ export class BookingItemDto {
   @IsNumber()
   @Min(0)
   freshPieceCost?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  rentPrice?: number;
 }
 
 export class CreateBookingDto {
@@ -72,8 +77,16 @@ export class CreateBookingDto {
   @IsDateString()
   bookingDate: string;
 
+  @IsOptional()
+  @IsEnum(TimeOfDay)
+  pickupTime?: TimeOfDay;
+
   @IsDateString()
   returnDate: string;
+
+  @IsOptional()
+  @IsEnum(TimeOfDay)
+  returnTime?: TimeOfDay;
 
   @IsOptional()
   @IsEnum(BookingStatus)

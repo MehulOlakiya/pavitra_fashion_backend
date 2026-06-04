@@ -43,6 +43,11 @@ export class CustomersController {
     return this.customersService.getAnalytics(start, end);
   }
 
+  @Get("report")
+  getReport() {
+    return this.customersService.getAllForReport();
+  }
+
   @Get(":id")
   findOne(@Param("id") id: string) {
     return this.customersService.findOne(id);

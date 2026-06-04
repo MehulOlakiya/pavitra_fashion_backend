@@ -51,6 +51,19 @@ export class BookingsController {
   }
 
   /**
+   * GET /api/bookings/report?status=&fromDate=&toDate=
+   * Returns all matching bookings (no pagination) for report export
+   */
+  @Get("report")
+  report(
+    @Query("status") status?: string,
+    @Query("fromDate") fromDate?: string,
+    @Query("toDate") toDate?: string,
+  ) {
+    return this.bookingsService.getReport({ status, fromDate, toDate });
+  }
+
+  /**
    * GET /api/bookings/search?customerName=&serialNumber=&customerPhone=&status=&fromDate=&toDate=
    * Search / filter bookings — must come before :id route
    */

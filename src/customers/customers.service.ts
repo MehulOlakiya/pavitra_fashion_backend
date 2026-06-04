@@ -120,7 +120,58 @@ export class CustomersService {
     };
   }
 
+  async getAllForReport(): Promise<any[]> {
+    return this.customerModel.aggregate([
+      { $sort: { createdAt: -1 } },
+      {
+        $lookup: {
+          from: "bookings",
+          localField: "_id",
+          foreignField: "customer",
+          as: "bookingDocs",
+        },
+      },
+      {
+        $addFields: {
+          totalBooking: { $size: "$bookingDocs" },
+          pendingPayment: {
+            $sum: {
+              $map: {
+                input: {
+                  $filter: {
+                    input: "$bookingDocs",
+                    as: "b",
+                    cond: { $ne: ["$$b.status", "cancelled"] },
+                  },
+                },
+                as: "b",
+                in: { $ifNull: ["$$b.remainingPayment", 0] },
+              },
+            },
+          },
+          totalRevenue: {
+            $sum: {
+              $map: {
+                input: {
+                  $filter: {
+                    input: "$bookingDocs",
+                    as: "b",
+                    cond: { $ne: ["$$b.status", "cancelled"] },
+                  },
+                },
+                as: "b",
+                in: { $ifNull: ["$$b.totalPayment", 0] },
+              },
+            },
+          },
+        },
+      },
+      { $project: { bookingDocs: 0 } },
+    ]);
+  }
+
   async findOne(id: string): Promise<Customer> {
+
     const customer = await this.customerModel
       .findById(id)
       .populate("bookings")

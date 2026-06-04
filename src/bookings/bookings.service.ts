@@ -67,7 +67,7 @@ export class BookingsService {
   }
 
   async search(query: SearchBookingDto): Promise<PaginatedBookings> {
-    const filter: FilterQuery<BookingDocument> = {};
+    const filter: FilterQuery<BookingDocument> = { isDeleted: { $ne: true } };
 
     if (query.customerId) {
       filter.customer = query.customerId;
@@ -137,6 +137,7 @@ export class BookingsService {
       this.bookingModel
         .find(filter)
         .populate("customer")
+        .populate("items.product")
         .sort({ bookingDate: -1 })
         .skip(skip)
         .limit(limit)
@@ -155,6 +156,7 @@ export class BookingsService {
     const [data, total] = await Promise.all([
       this.bookingModel
         .aggregate([
+          { $match: { isDeleted: { $ne: true } } },
           {
             $addFields: {
               _sortPriority: {
@@ -186,7 +188,7 @@ export class BookingsService {
           { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } },
         ])
         .exec(),
-      this.bookingModel.countDocuments().exec(),
+      this.bookingModel.countDocuments({ isDeleted: { $ne: true } }).exec(),
     ]);
 
     return {
@@ -198,9 +200,30 @@ export class BookingsService {
     };
   }
 
+  async getReport(params: { status?: string; fromDate?: string; toDate?: string }): Promise<BookingDocument[]> {
+    const filter: FilterQuery<BookingDocument> = { isDeleted: { $ne: true } };
+    if (params.status) filter.status = params.status;
+    if (params.fromDate || params.toDate) {
+      filter.bookingDate = {};
+      if (params.fromDate) filter.bookingDate.$gte = new Date(params.fromDate);
+      if (params.toDate) {
+        const to = new Date(params.toDate);
+        to.setUTCDate(to.getUTCDate() + 1);
+        filter.bookingDate.$lt = to;
+      }
+    }
+    return this.bookingModel
+      .find(filter)
+      .populate("customer")
+      .sort({ bookingDate: -1 })
+      .limit(5000)
+      .exec();
+  }
+
   async findOne(id: string): Promise<BookingDocument> {
+
     const booking = await this.bookingModel
-      .findById(id)
+      .findOne({ _id: id, isDeleted: { $ne: true } })
       .populate("customer")
       .populate("items.product")
       .exec();
@@ -218,7 +241,7 @@ export class BookingsService {
   }
 
   async remove(id: string): Promise<void> {
-    const result = await this.bookingModel.findByIdAndDelete(id).exec();
+    const result = await this.bookingModel.findByIdAndUpdate(id, { isDeleted: true }).exec();
     if (!result) throw new NotFoundException(`Booking "${id}" not found.`);
 
     if (result.customer) {
@@ -272,6 +295,7 @@ export class BookingsService {
     const result = await this.bookingModel
       .updateMany(
         {
+          isDeleted: { $ne: true },
           status: { $in: [BookingStatus.BOOKED, BookingStatus.RENTED] },
           returnDate: { $gte: todayStart, $lte: todayEnd },
         },
@@ -295,7 +319,7 @@ export class BookingsService {
     returned: number;
     cancelled: number;
   }> {
-    const matchStage: FilterQuery<BookingDocument> = {};
+    const matchStage: FilterQuery<BookingDocument> = { isDeleted: { $ne: true } };
     if (params.fromDate || params.toDate) {
       matchStage.bookingDate = {};
       if (params.fromDate)
@@ -339,6 +363,7 @@ export class BookingsService {
     toInclusive.setUTCDate(toInclusive.getUTCDate() + 1);
 
     const filter = {
+      isDeleted: { $ne: true },
       status: { $in: [BookingStatus.BOOKED, BookingStatus.RENTED, BookingStatus.PENDING_RETURN] },
       bookingDate: { $lt: toInclusive },
       returnDate: { $gte: from },
@@ -370,6 +395,7 @@ export class BookingsService {
 
     return this.bookingModel
       .find({
+        isDeleted: { $ne: true },
         $or: [
           { productSerialNumber: serialRegex },
           { "items.serialNumber": serialRegex },

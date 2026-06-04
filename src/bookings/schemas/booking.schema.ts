@@ -18,6 +18,11 @@ export enum BeltType {
   FB = "FB",
 }
 
+export enum TimeOfDay {
+  MORNING = "Morning",
+  EVENING = "Evening",
+}
+
 @Schema()
 export class BookingItem {
   @Prop({ required: true, trim: true })
@@ -34,6 +39,9 @@ export class BookingItem {
 
   @Prop({ required: false, min: 0 })
   freshPieceCost: number;
+
+  @Prop({ required: false, min: 0 })
+  rentPrice: number;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Product' })
   product: Product;
@@ -67,8 +75,14 @@ export class Booking {
   @Prop({ required: true })
   bookingDate: Date;
 
+  @Prop({ required: false, enum: TimeOfDay })
+  pickupTime: TimeOfDay;
+
   @Prop({ required: true })
   returnDate: Date;
+
+  @Prop({ required: false, enum: TimeOfDay })
+  returnTime: TimeOfDay;
 
   @Prop({ enum: BookingStatus, default: BookingStatus.BOOKED })
   status: BookingStatus;
@@ -87,6 +101,12 @@ export class Booking {
 
   @Prop({ default: false })
   isBillSend: boolean;
+
+  @Prop({ default: false })
+  isDeleted: boolean;
+
+  @Prop({ required: false, min: 0, default: 0 })
+  totalDiscount: number;
 }
 
 export const BookingSchema = SchemaFactory.createForClass(Booking);

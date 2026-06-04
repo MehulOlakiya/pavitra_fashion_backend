@@ -53,16 +53,18 @@ export class AnalyticsService {
 
     // 2. Active Bookings (Booked + Rented)
     const activeBookings = await this.bookingModel.countDocuments({
+      isDeleted: { $ne: true },
       status: { $in: ["booked", "rented"] },
     });
     const activeSinceYesterday = await this.bookingModel.countDocuments({
+      isDeleted: { $ne: true },
       status: { $in: ["booked", "rented"] },
       createdAt: { $gte: yesterday },
     });
 
     // 3. Pending Payments
     const pendingPaymentsData = await this.bookingModel.aggregate([
-      { $match: { remainingPayment: { $gt: 0 } } },
+      { $match: { remainingPayment: { $gt: 0 }, isDeleted: { $ne: true } } },
       {
         $group: {
           _id: null,
@@ -76,7 +78,7 @@ export class AnalyticsService {
 
     // 4. Monthly Revenue
     const thisMonthRevenueData = await this.bookingModel.aggregate([
-      { $match: { bookingDate: { $gte: startOfThisMonth } } },
+      { $match: { bookingDate: { $gte: startOfThisMonth }, isDeleted: { $ne: true } } },
       {
         $group: {
           _id: null,
@@ -96,6 +98,7 @@ export class AnalyticsService {
     const lastMonthRevenueData = await this.bookingModel.aggregate([
       {
         $match: {
+          isDeleted: { $ne: true },
           bookingDate: { $gte: startOfLastMonth, $lte: endOfLastMonth },
         },
       },
@@ -126,17 +129,20 @@ export class AnalyticsService {
 
     // 5. Returned (This Month)
     const returnedThisMonth = await this.bookingModel.countDocuments({
+      isDeleted: { $ne: true },
       returnDate: { $gte: startOfThisMonth },
       status: "returned",
     });
 
     // 6. Today's Returns
     const todaysReturnsTotal = await this.bookingModel.countDocuments({
+      isDeleted: { $ne: true },
       returnDate: { $gte: today, $lte: endOfToday },
       status: { $in: [BookingStatus.RENTED, BookingStatus.RETURNED] },
     });
 
     const todaysPendingReturns = await this.bookingModel.countDocuments({
+      isDeleted: { $ne: true },
       returnDate: { $gte: today, $lte: endOfToday },
       status: { $eq: BookingStatus.RENTED },
     });
@@ -184,6 +190,7 @@ export class AnalyticsService {
     const bookingDateData = await this.bookingModel.aggregate([
       {
         $match: {
+          isDeleted: { $ne: true },
           bookingDate: { $gte: start, $lte: end },
           status: { $in: ["booked", "rented", "cancelled"] },
         },
@@ -208,6 +215,7 @@ export class AnalyticsService {
     const returnDateData = await this.bookingModel.aggregate([
       {
         $match: {
+          isDeleted: { $ne: true },
           returnDate: { $gte: start, $lte: end },
           status: { $in: ["pending_return", "returned"] },
         },
@@ -284,6 +292,7 @@ export class AnalyticsService {
     const revenueData = await this.bookingModel.aggregate([
       {
         $match: {
+          isDeleted: { $ne: true },
           bookingDate: { $gte: start, $lte: end },
           status: { $ne: "cancelled" },
         },
