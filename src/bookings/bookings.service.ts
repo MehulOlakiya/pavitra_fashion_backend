@@ -71,18 +71,30 @@ export class BookingsService {
 
     if (query.customerId) {
       filter.customer = query.customerId;
-    } else if (query.customerName || query.customerPhone || query.orderId || query.serialNumber) {
+    } else if (
+      query.customerName ||
+      query.customerPhone ||
+      query.orderId ||
+      query.serialNumber
+    ) {
       const orConditions: any[] = [];
-      
+
       if (query.customerName || query.customerPhone) {
         const customerFilter: FilterQuery<CustomerDocument> = { $or: [] };
         if (query.customerName) {
-          customerFilter.$or!.push({ name: { $regex: query.customerName.trim(), $options: "i" } });
+          customerFilter.$or!.push({
+            name: { $regex: query.customerName.trim(), $options: "i" },
+          });
         }
         if (query.customerPhone) {
-          customerFilter.$or!.push({ mobileNumber: { $regex: query.customerPhone.trim(), $options: "i" } });
+          customerFilter.$or!.push({
+            mobileNumber: { $regex: query.customerPhone.trim(), $options: "i" },
+          });
         }
-        const matchingCustomers = await this.customerModel.find(customerFilter).select("_id").exec();
+        const matchingCustomers = await this.customerModel
+          .find(customerFilter)
+          .select("_id")
+          .exec();
         const customerIds = matchingCustomers.map((c) => c._id);
         if (customerIds.length > 0) {
           orConditions.push({ customer: { $in: customerIds } });
@@ -90,12 +102,24 @@ export class BookingsService {
       }
 
       if (query.orderId) {
-        orConditions.push({ orderId: { $regex: query.orderId.trim(), $options: "i" } });
+        orConditions.push({
+          orderId: { $regex: query.orderId.trim(), $options: "i" },
+        });
       }
 
       if (query.serialNumber) {
-        orConditions.push({ productSerialNumber: { $regex: query.serialNumber.trim(), $options: "i" } });
-        orConditions.push({ "items.serialNumber": { $regex: query.serialNumber.trim(), $options: "i" } });
+        orConditions.push({
+          productSerialNumber: {
+            $regex: query.serialNumber.trim(),
+            $options: "i",
+          },
+        });
+        orConditions.push({
+          "items.serialNumber": {
+            $regex: query.serialNumber.trim(),
+            $options: "i",
+          },
+        });
       }
 
       if (orConditions.length > 0) {
@@ -200,7 +224,11 @@ export class BookingsService {
     };
   }
 
-  async getReport(params: { status?: string; fromDate?: string; toDate?: string }): Promise<BookingDocument[]> {
+  async getReport(params: {
+    status?: string;
+    fromDate?: string;
+    toDate?: string;
+  }): Promise<BookingDocument[]> {
     const filter: FilterQuery<BookingDocument> = { isDeleted: { $ne: true } };
     if (params.status) filter.status = params.status;
     if (params.fromDate || params.toDate) {
@@ -221,7 +249,6 @@ export class BookingsService {
   }
 
   async findOne(id: string): Promise<BookingDocument> {
-
     const booking = await this.bookingModel
       .findOne({ _id: id, isDeleted: { $ne: true } })
       .populate("customer")
@@ -241,7 +268,9 @@ export class BookingsService {
   }
 
   async remove(id: string): Promise<void> {
-    const result = await this.bookingModel.findByIdAndUpdate(id, { isDeleted: true }).exec();
+    const result = await this.bookingModel
+      .findByIdAndUpdate(id, { isDeleted: true })
+      .exec();
     if (!result) throw new NotFoundException(`Booking "${id}" not found.`);
 
     if (result.customer) {
@@ -319,7 +348,9 @@ export class BookingsService {
     returned: number;
     cancelled: number;
   }> {
-    const matchStage: FilterQuery<BookingDocument> = { isDeleted: { $ne: true } };
+    const matchStage: FilterQuery<BookingDocument> = {
+      isDeleted: { $ne: true },
+    };
     if (params.fromDate || params.toDate) {
       matchStage.bookingDate = {};
       if (params.fromDate)
@@ -364,7 +395,14 @@ export class BookingsService {
 
     const filter = {
       isDeleted: { $ne: true },
-      status: { $in: [BookingStatus.BOOKED, BookingStatus.RENTED, BookingStatus.PENDING_RETURN] },
+      status: {
+        $in: [
+          BookingStatus.BOOKED,
+          BookingStatus.RENTED,
+          BookingStatus.PENDING_RETURN,
+          BookingStatus.PARTIAL_RETURN,
+        ],
+      },
       bookingDate: { $lt: toInclusive },
       returnDate: { $gte: from },
     };
@@ -372,9 +410,14 @@ export class BookingsService {
     const distinctTopLevel = await this.bookingModel
       .distinct("productSerialNumber", filter)
       .exec();
-    const distinctItems = await this.bookingModel
-      .distinct("items.serialNumber", filter)
-      .exec();
+      
+    const itemsAggregation = await this.bookingModel.aggregate([
+      { $match: filter },
+      { $unwind: "$items" },
+      { $match: { "items.isReturned": { $ne: true } } },
+      { $group: { _id: null, serials: { $addToSet: "$items.serialNumber" } } }
+    ]).exec();
+    const distinctItems = itemsAggregation.length > 0 ? itemsAggregation[0].serials : [];
 
     const all = [...distinctTopLevel, ...distinctItems].filter(
       Boolean,
@@ -406,6 +449,7 @@ export class BookingsService {
         },
       })
       .sort({ bookingDate: 1 })
+      .populate("customer")
       .exec();
   }
 }

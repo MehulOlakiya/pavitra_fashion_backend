@@ -58,49 +58,91 @@ export class PdfService {
     }
   }
 
-  
   private numberToWords(num: number): string {
-    if (num === 0) return 'Zero';
-    const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
-    const b = ['', '', 'Twenty','Thirty','Forty','Fifty', 'Sixty','Seventy','Eighty','Ninety'];
+    if (num === 0) return "Zero";
+    const a = [
+      "",
+      "One ",
+      "Two ",
+      "Three ",
+      "Four ",
+      "Five ",
+      "Six ",
+      "Seven ",
+      "Eight ",
+      "Nine ",
+      "Ten ",
+      "Eleven ",
+      "Twelve ",
+      "Thirteen ",
+      "Fourteen ",
+      "Fifteen ",
+      "Sixteen ",
+      "Seventeen ",
+      "Eighteen ",
+      "Nineteen ",
+    ];
+    const b = [
+      "",
+      "",
+      "Twenty",
+      "Thirty",
+      "Forty",
+      "Fifty",
+      "Sixty",
+      "Seventy",
+      "Eighty",
+      "Ninety",
+    ];
 
     const inWords = (n: number): string => {
-        if (n < 20) return a[n];
-        if (n < 100) return b[Math.floor(n / 10)] + (n % 10 ? ' ' + a[n % 10] : '');
-        if (n < 1000) return a[Math.floor(n / 100)] + 'Hundred ' + (n % 100 ? 'and ' + inWords(n % 100) : '');
-        if (n < 100000) return inWords(Math.floor(n / 1000)) + 'Thousand ' + (n % 1000 ? inWords(n % 1000) : '');
-        if (n < 10000000) return inWords(Math.floor(n / 100000)) + 'Lakh ' + (n % 100000 ? inWords(n % 100000) : '');
-        return inWords(Math.floor(n / 10000000)) + 'Crore ' + (n % 10000000 ? inWords(n % 10000000) : '');
+      if (n < 20) return a[n];
+      if (n < 100)
+        return b[Math.floor(n / 10)] + (n % 10 ? " " + a[n % 10] : "");
+      if (n < 1000)
+        return (
+          a[Math.floor(n / 100)] +
+          "Hundred " +
+          (n % 100 ? "and " + inWords(n % 100) : "")
+        );
+      if (n < 100000)
+        return (
+          inWords(Math.floor(n / 1000)) +
+          "Thousand " +
+          (n % 1000 ? inWords(n % 1000) : "")
+        );
+      if (n < 10000000)
+        return (
+          inWords(Math.floor(n / 100000)) +
+          "Lakh " +
+          (n % 100000 ? inWords(n % 100000) : "")
+        );
+      return (
+        inWords(Math.floor(n / 10000000)) +
+        "Crore " +
+        (n % 10000000 ? inWords(n % 10000000) : "")
+      );
     };
 
-    return inWords(Math.floor(num)).trim() + ' Rupees Only';
+    return inWords(Math.floor(num)).trim() + " Rupees Only";
   }
 
   private getHtmlTemplate(booking: any): string {
-    const customer = booking.customer || {};
-    const billGenerationDate = new Date().toLocaleDateString("en-IN", {
+    const dateOptions: Intl.DateTimeFormatOptions = {
+      weekday: "short",
       day: "2-digit",
       month: "short",
       year: "numeric",
-    });
+    };
+
+    const customer = booking.customer || {};
+    const billGenerationDate = new Date().toLocaleDateString("en-IN", dateOptions);
     const pickupTimeStr = booking.pickupTime ? ` (${booking.pickupTime})` : "";
-    const bookingDateStr = new Date(booking.bookingDate).toLocaleDateString(
-      "en-IN",
-      {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      },
-    ) + pickupTimeStr;
+    const bookingDateStr =
+      new Date(booking.bookingDate).toLocaleDateString("en-IN", dateOptions) + pickupTimeStr;
     const returnTimeStr = booking.returnTime ? ` (${booking.returnTime})` : "";
-    const returnDateStr = new Date(booking.returnDate).toLocaleDateString(
-      "en-IN",
-      {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      },
-    ) + returnTimeStr;
+    const returnDateStr =
+      new Date(booking.returnDate).toLocaleDateString("en-IN", dateOptions) + returnTimeStr;
     const invoiceNo = booking?.orderId.split("-")[1];
 
     // Map items
@@ -119,7 +161,6 @@ export class PdfService {
             ]
           : [];
 
-    
     let itemsHtml = "";
     let subTotal = 0;
     let rowIndex = 1;
@@ -173,7 +214,7 @@ export class PdfService {
 
     const advancePayment = booking.advancePayment || 0;
     const remainingPayment = booking.remainingPayment || 0;
-    const grandTotal = advancePayment + remainingPayment;
+    const grandTotal = subTotal;
 
     // Calculate a derived discount if subTotal doesn't match grandTotal and subTotal > grandTotal
     const discount = subTotal > grandTotal ? subTotal - grandTotal : 0;
@@ -183,6 +224,18 @@ export class PdfService {
       subTotal = grandTotal;
     }
 
+    // Load Logo image as Base64
+    let logoBase64 = "";
+    try {
+      const logoPath = path.join(process.cwd(), "public", "Logo.jpeg");
+      if (fs.existsSync(logoPath)) {
+        const logoBuffer = fs.readFileSync(logoPath);
+        logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString("base64")}`;
+      }
+    } catch (err) {
+      this.logger.error("Failed to load Logo.jpeg", err);
+    }
+
     return `
       <!DOCTYPE html>
       <html>
@@ -190,10 +243,10 @@ export class PdfService {
         <meta charset="utf-8">
         <title>Invoice</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;600&family=Roboto:wght@400;500;700&display=swap');
           @page { size: A5 landscape; margin: 0; }
           body { 
-            font-family: 'Roboto', sans-serif; 
+            font-family: 'Roboto', 'Noto Sans Gujarati', sans-serif; 
             margin: 0; 
             padding: 10px 20px; 
             font-size: 10px; 
@@ -234,17 +287,11 @@ export class PdfService {
             font-size: 10px;
           }
           
-          .logo-mark {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            background: #f4e8e1;
+          img.logo-mark {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
             border-radius: 4px;
-            color: #4a2c11;
-            font-weight: bold;
-            font-size: 24px;
             margin-right: 12px;
           }
 
@@ -337,7 +384,7 @@ export class PdfService {
           
           <div class="row">
             <div class="header-col-left">
-              <div class="logo-mark">P</div>
+              ${logoBase64 ? `<img src="${logoBase64}" class="logo-mark" />` : '<div class="logo-mark" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;background:#f4e8e1;border-radius:4px;color:#4a2c11;font-weight:bold;font-size:24px;margin-right:12px;">P</div>'}
               <div class="logo-text-box">
                 <h1>PAVITRA CREATION</h1>
                 <p>Pavitra Fashion, khashipra plaza near bus satnd sardhar, pincode - 360025</p>
@@ -416,9 +463,15 @@ export class PdfService {
           </div>
           
           <div class="row footer-row">
-            <div class="footer-col-left">
-              <div style="font-weight:bold; margin-bottom:4px; color:#333;">Terms & Conditions:</div>
-              <div style="color:#555;">Thanks for doing business with us!</div>
+            <div class="footer-col-left" style="font-size: 8.5px;">
+              <div style="font-weight:bold; margin-bottom:4px; color:#333; font-size: 9px;">Terms & Conditions:</div>
+              <div style="color:#555; line-height: 1.4; padding-right: 12px;">
+                1. એકવાર ઓર્ડર બુક થયા બાદ તે રદ (Cancel) કરી શકાશે નહીં. જો કોઈ કારણસર ઓર્ડર રદ કરવામાં આવશે, તો એડવાન્સમાં ચૂકવેલ રકમ પરત આપવામાં આવશે નહીં.<br>
+                2. ચોળી પરત આપતી વખતે તેમાં તેલ, હળદર અથવા અન્ય કોઈપણ ડાઘ જોવા મળશે તો તેની સફાઈ માટે વધારાના ચાર્જ લેવામાં આવશે.<br>
+                3. ચોળી ફાટેલી, નુકસાનગ્રસ્ત (Damage) અથવા કોઈપણ પ્રકારની ખરાબ સ્થિતિમાં પરત કરવામાં આવશે તો તેના માટે વધારાના ચાર્જ લેવામાં આવશે.<br>
+                4. ચોળી નક્કી કરેલા સમય અથવા તારીખે પરત આપવામાં નહીં આવે તો મોડું પરત કરવા બદલ વધારાના ચાર્જ લેવામાં આવશે.<br>
+                <b style="color:#333; display:inline-block; margin-top:2px;">ઉપરોક્ત તમામ નિયમો અને શરતો ગ્રાહકને માન્ય રહેશે.</b>
+              </div>
             </div>
             <div class="footer-col-right">
               <div style="font-weight:bold; color:#333;">For PAVITRA CREATION:</div>

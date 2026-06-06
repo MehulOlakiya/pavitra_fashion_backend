@@ -43,6 +43,10 @@ export class BookingItemDto {
   @IsNumber()
   @Min(0)
   rentPrice?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isReturned?: boolean;
 }
 
 export class CreateBookingDto {

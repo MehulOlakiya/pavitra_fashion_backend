@@ -18,6 +18,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { BookingsService } from "../bookings/bookings.service";
+import { ExpensesService } from "../expenses/expenses.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { ProductsService } from "./products.service";
@@ -28,6 +29,7 @@ export class ProductsController {
   constructor(
     private readonly productsService: ProductsService,
     private readonly bookingsService: BookingsService,
+    private readonly expensesService: ExpensesService,
   ) {}
 
   /**
@@ -62,6 +64,18 @@ export class ProductsController {
       throw new Error("No file uploaded.");
     }
     return this.productsService.importFromFile(file.buffer, file.mimetype);
+  }
+
+  /**
+   * POST /api/products/bulk
+   * Bulk-create multiple products in one request
+   */
+  @Post('bulk')
+  bulkCreate(@Body() dtos: CreateProductDto[]) {
+    if (!Array.isArray(dtos) || dtos.length === 0) {
+      throw new BadRequestException('Request body must be a non-empty array of products.');
+    }
+    return this.productsService.bulkCreate(dtos);
   }
 
   /**
@@ -117,7 +131,8 @@ export class ProductsController {
     const product = await this.productsService.findBySerialNumber(serialNumber);
     const futureBookings =
       await this.bookingsService.findFutureBookingsBySerial(serialNumber);
-    return { product, futureBookings };
+    const activeExpense = await this.expensesService.findActiveExpenseBySerial(serialNumber);
+    return { product, futureBookings, activeExpense };
   }
 
   /**

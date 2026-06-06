@@ -12,6 +12,8 @@ import { WhatsAppModule } from "./whatsapp/whatsapp.module";
 import { CustomersModule } from "./customers/customers.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { NotificationsModule } from './notifications/notifications.module';
+import { PartiesModule } from "./parties/parties.module";
+import { ExpensesModule } from "./expenses/expenses.module";
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     CustomersModule,
     AnalyticsModule,
     NotificationsModule,
+    PartiesModule,
+    ExpensesModule,
   ],
 })
 export class AppModule {}

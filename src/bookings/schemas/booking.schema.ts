@@ -9,6 +9,7 @@ export enum BookingStatus {
   BOOKED = "booked",
   RENTED = "rented",
   PENDING_RETURN = "pending_return",
+  PARTIAL_RETURN = "partial_return",
   RETURNED = "returned",
   CANCELLED = "cancelled",
 }
@@ -21,6 +22,8 @@ export enum BeltType {
 export enum TimeOfDay {
   MORNING = "Morning",
   EVENING = "Evening",
+  AFTERNOON = "Afternoon",
+  NIGHT = "Night",
 }
 
 @Schema()
@@ -45,6 +48,9 @@ export class BookingItem {
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Product' })
   product: Product;
+
+  @Prop({ default: false })
+  isReturned: boolean;
 }
 
 export const BookingItemSchema = SchemaFactory.createForClass(BookingItem);

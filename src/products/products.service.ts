@@ -52,6 +52,50 @@ export class ProductsService {
     return product.save();
   }
 
+  /**
+   * Bulk-create multiple products. Returns counts of inserted, skipped (duplicate),
+   * and an array of per-item error messages.
+   */
+  async bulkCreate(dtos: CreateProductDto[]): Promise<{
+    inserted: number;
+    skipped: number;
+    errors: { index: number; serialNumber: string; message: string }[];
+  }> {
+    let inserted = 0;
+    let skipped = 0;
+    const errors: { index: number; serialNumber: string; message: string }[] = [];
+
+    for (let i = 0; i < dtos.length; i++) {
+      const dto = dtos[i];
+      try {
+        const existing = await this.productModel
+          .findOne({ serialNumber: dto.serialNumber })
+          .exec();
+        if (existing) {
+          skipped++;
+          errors.push({
+            index: i,
+            serialNumber: dto.serialNumber,
+            message: `Serial number "${dto.serialNumber}" already exists.`,
+          });
+          continue;
+        }
+        const product = new this.productModel(dto);
+        await product.save();
+        inserted++;
+      } catch (err: any) {
+        skipped++;
+        errors.push({
+          index: i,
+          serialNumber: dto.serialNumber,
+          message: err?.message ?? 'Unknown error',
+        });
+      }
+    }
+
+    return { inserted, skipped, errors };
+  }
+
   async findAll(
     params: {
       page?: number;
@@ -79,17 +123,70 @@ export class ProductsService {
       filter["serialNumber"] = { $in: params.serialNumbers };
     }
 
+    const aggregatePipeline: any[] = [
+      { $match: filter },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: "bookings",
+          let: { serial: "$serialNumber" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $ne: ["$isDeleted", true] },
+                    { $ne: ["$status", "cancelled"] },
+                    {
+                      $or: [
+                        { $eq: ["$productSerialNumber", "$$serial"] },
+                        { $in: ["$$serial", { $ifNull: ["$items.serialNumber", []] }] }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          as: "bookings",
+        }
+      },
+      {
+        $addFields: {
+          rentCount: { $size: "$bookings" },
+          totalRevenue: {
+            $sum: {
+              $map: {
+                input: "$bookings",
+                as: "b",
+                in: { $ifNull: ["$$b.totalPayment", { $add: [{ $ifNull: ["$$b.advancePayment", 0] }, { $ifNull: ["$$b.remainingPayment", 0] }] }] }
+              }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          profit: {
+            $subtract: ["$totalRevenue", { $ifNull: ["$purchasePrice", 0] }]
+          }
+        }
+      },
+      {
+        $project: {
+          bookings: 0
+        }
+      }
+    ];
+
     const [data, total] = await Promise.all([
-      this.productModel
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .exec(),
+      this.productModel.aggregate(aggregatePipeline).exec(),
       this.productModel.countDocuments(filter).exec(),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return { data: data as ProductDocument[], total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async getAnalytics(startDate?: Date, endDate?: Date): Promise<ProductAnalytics> {
@@ -193,17 +290,70 @@ export class ProductsService {
       ];
     }
 
+    const aggregatePipeline: any[] = [
+      { $match: filter },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: "bookings",
+          let: { serial: "$serialNumber" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $ne: ["$isDeleted", true] },
+                    { $ne: ["$status", "cancelled"] },
+                    {
+                      $or: [
+                        { $eq: ["$productSerialNumber", "$$serial"] },
+                        { $in: ["$$serial", { $ifNull: ["$items.serialNumber", []] }] }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          as: "bookings",
+        }
+      },
+      {
+        $addFields: {
+          rentCount: { $size: "$bookings" },
+          totalRevenue: {
+            $sum: {
+              $map: {
+                input: "$bookings",
+                as: "b",
+                in: { $ifNull: ["$$b.totalPayment", { $add: [{ $ifNull: ["$$b.advancePayment", 0] }, { $ifNull: ["$$b.remainingPayment", 0] }] }] }
+              }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          profit: {
+            $subtract: ["$totalRevenue", { $ifNull: ["$purchasePrice", 0] }]
+          }
+        }
+      },
+      {
+        $project: {
+          bookings: 0
+        }
+      }
+    ];
+
     const [data, total] = await Promise.all([
-      this.productModel
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .exec(),
+      this.productModel.aggregate(aggregatePipeline).exec(),
       this.productModel.countDocuments(filter).exec(),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return { data: data as ProductDocument[], total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findBySerialNumber(serialNumber: string): Promise<ProductDocument> {

@@ -147,6 +147,51 @@ export class AnalyticsService {
       status: { $eq: BookingStatus.RENTED },
     });
 
+    // --- New Dashboard Widget Stats ---
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const endOfTomorrow = new Date(tomorrow);
+    endOfTomorrow.setHours(23, 59, 59, 999);
+
+    // 1. Today's Booking (Created Today)
+    const todaysBooking = await this.bookingModel.countDocuments({
+      isDeleted: { $ne: true },
+      createdAt: { $gte: today, $lte: endOfToday },
+    });
+
+    // 2. Today's Rent (BookingDate is today)
+    const todaysRentTotal = await this.bookingModel.countDocuments({
+      isDeleted: { $ne: true },
+      bookingDate: { $gte: today, $lte: endOfToday },
+      status: { $ne: 'cancelled' }
+    });
+    const todaysRentCompleted = await this.bookingModel.countDocuments({
+      isDeleted: { $ne: true },
+      bookingDate: { $gte: today, $lte: endOfToday },
+      status: { $in: ['rented', 'pending_return', 'partial_return', 'returned'] }
+    });
+
+    // 3. Prepare Rent (Bookings for tomorrow that are still 'booked')
+    const prepareRent = await this.bookingModel.countDocuments({
+      isDeleted: { $ne: true },
+      bookingDate: { $gte: tomorrow, $lte: endOfTomorrow },
+      status: 'booked'
+    });
+
+    // 4. Pending Rent (BookingDate < today and status is 'booked')
+    const pendingRent = await this.bookingModel.countDocuments({
+      isDeleted: { $ne: true },
+      bookingDate: { $lt: today },
+      status: 'booked'
+    });
+
+    // 5. Pending Return (ReturnDate < today and status is 'rented')
+    const pendingReturn = await this.bookingModel.countDocuments({
+      isDeleted: { $ne: true },
+      returnDate: { $lt: today },
+      status: { $in: ['rented', 'pending_return'] }
+    });
+
     return {
       totalCloths: {
         value: totalCloths,
@@ -178,6 +223,18 @@ export class AnalyticsService {
         value: todaysReturnsTotal,
         trend: `${todaysPendingReturns} pending returns`,
       },
+      // New Stats
+      newWidgetStats: {
+        todaysBooking,
+        todaysRent: {
+          completed: todaysRentCompleted,
+          total: todaysRentTotal
+        },
+        todaysReturn: todaysReturnsTotal, // Or specific calculation
+        prepareRent,
+        pendingRent,
+        pendingReturn
+      }
     };
   }
 
