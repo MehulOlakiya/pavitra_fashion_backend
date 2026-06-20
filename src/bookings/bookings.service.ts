@@ -325,7 +325,7 @@ export class BookingsService {
       .updateMany(
         {
           isDeleted: { $ne: true },
-          status: { $in: [BookingStatus.BOOKED, BookingStatus.RENTED] },
+          status: { $in: [BookingStatus.RENTED] },
           returnDate: { $gte: todayStart, $lte: todayEnd },
         },
         { $set: { status: BookingStatus.PENDING_RETURN } },
@@ -410,14 +410,19 @@ export class BookingsService {
     const distinctTopLevel = await this.bookingModel
       .distinct("productSerialNumber", filter)
       .exec();
-      
-    const itemsAggregation = await this.bookingModel.aggregate([
-      { $match: filter },
-      { $unwind: "$items" },
-      { $match: { "items.isReturned": { $ne: true } } },
-      { $group: { _id: null, serials: { $addToSet: "$items.serialNumber" } } }
-    ]).exec();
-    const distinctItems = itemsAggregation.length > 0 ? itemsAggregation[0].serials : [];
+
+    const itemsAggregation = await this.bookingModel
+      .aggregate([
+        { $match: filter },
+        { $unwind: "$items" },
+        { $match: { "items.isReturned": { $ne: true } } },
+        {
+          $group: { _id: null, serials: { $addToSet: "$items.serialNumber" } },
+        },
+      ])
+      .exec();
+    const distinctItems =
+      itemsAggregation.length > 0 ? itemsAggregation[0].serials : [];
 
     const all = [...distinctTopLevel, ...distinctItems].filter(
       Boolean,

@@ -70,6 +70,12 @@ export class ExpensesController {
     );
   }
 
+  /** GET /expenses/total-by-product/:productId */
+  @Get("total-by-product/:productId")
+  getTotalByProduct(@Param("productId") productId: string) {
+    return this.expensesService.getTotalByProduct(productId);
+  }
+
   /** GET /expenses — paginated list (alias for search with no filters) */
   @Get()
   findAll(@Query() query: SearchExpenseDto) {

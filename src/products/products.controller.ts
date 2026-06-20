@@ -164,6 +164,15 @@ export class ProductsController {
   }
 
   /**
+   * GET /api/products/:id/insights
+   * Returns server-calculated analytics: totalRevenue, rentalCount, profit, totalExpense
+   */
+  @Get(":id/insights")
+  getInsights(@Param("id") id: string) {
+    return this.productsService.getInsights(id);
+  }
+
+  /**
    * GET /api/products/:id
    * Get a single product by MongoDB id
    */

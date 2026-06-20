@@ -15,6 +15,7 @@ import {
   ProductCategory,
 } from "./schemas/product.schema";
 import { BookingsService } from "../bookings/bookings.service";
+import { ExpensesService } from "../expenses/expenses.service";
 
 export interface PaginatedProducts {
   data: ProductDocument[];
@@ -31,12 +32,20 @@ export interface ProductAnalytics {
   categories: string[];
 }
 
+export interface ProductInsights {
+  totalRevenue: number;
+  rentalCount: number;
+  profit: number;
+  totalExpense: number;
+}
+
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectModel(Product.name)
     private readonly productModel: Model<ProductDocument>,
     private readonly bookingsService: BookingsService,
+    private readonly expensesService: ExpensesService,
   ) {}
 
   async create(dto: CreateProductDto): Promise<ProductDocument> {
@@ -225,6 +234,58 @@ export class ProductsService {
     const product = await this.productModel.findById(id).exec();
     if (!product) throw new NotFoundException(`Product "${id}" not found.`);
     return product;
+  }
+
+  /**
+   * GET /products/:id/insights
+   * Returns server-calculated analytics for a single product:
+   * totalRevenue, rentalCount, profit (revenue − purchasePrice), totalExpense.
+   */
+  async getInsights(id: string): Promise<ProductInsights> {
+    const product = await this.findOne(id);
+
+    const [bookingAgg, expenseResult] = await Promise.all([
+      // Aggregate bookings for this product's serial number
+      (this.productModel as any).db
+        .collection("bookings")
+        .aggregate([
+          {
+            $match: {
+              isDeleted: { $ne: true },
+              status: { $ne: "cancelled" },
+              $or: [
+                { productSerialNumber: product.serialNumber },
+                { "items.serialNumber": product.serialNumber },
+              ],
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              rentalCount: { $sum: 1 },
+              totalRevenue: {
+                $sum: {
+                  $ifNull: [
+                    "$totalPayment",
+                    { $add: [{ $ifNull: ["$advancePayment", 0] }, { $ifNull: ["$remainingPayment", 0] }] },
+                  ],
+                },
+              },
+            },
+          },
+        ])
+        .toArray() as Promise<{ rentalCount: number; totalRevenue: number }[]>,
+
+      // Reuse existing expense aggregation
+      this.expensesService.getTotalByProduct(id),
+    ]);
+
+    const rentalCount: number = bookingAgg[0]?.rentalCount ?? 0;
+    const totalRevenue: number = bookingAgg[0]?.totalRevenue ?? 0;
+    const totalExpense: number = expenseResult.total;
+    const profit: number = totalRevenue - (product.purchasePrice ?? 0);
+
+    return { totalRevenue, rentalCount, profit, totalExpense };
   }
 
   async update(id: string, dto: UpdateProductDto): Promise<ProductDocument> {

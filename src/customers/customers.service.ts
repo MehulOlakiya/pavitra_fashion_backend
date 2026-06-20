@@ -171,7 +171,6 @@ export class CustomersService {
   }
 
   async findOne(id: string): Promise<Customer> {
-
     const customer = await this.customerModel
       .findById(id)
       .populate("bookings")
@@ -198,7 +197,7 @@ export class CustomersService {
 
     customer.bookings.forEach((b: any) => {
       if (b.status !== "cancelled") {
-        totalRevenue += (b.advancePayment || 0) + (b.remainingPayment || 0);
+        totalRevenue += b.totalPayment || 0;
         pendingPayment += b.remainingPayment || 0;
       }
     });

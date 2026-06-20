@@ -12,5 +12,11 @@
       "dest": "src/main.ts",
       "methods": ["GET", "POST", "PUT", "PATCH", "HEAD", "DELETE", "OPTIONS"]
     }
+  ],
+  "crons": [
+    {
+      "path": "/tasks/run-pending-return",
+      "schedule": "30 13 * * *"
+    }
   ]
 }

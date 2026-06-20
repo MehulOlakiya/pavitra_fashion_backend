@@ -158,6 +158,25 @@ export class ExpensesService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
+  // ── Total expense amount for a product ────────────────────────
+  async getTotalByProduct(productId: string): Promise<{ total: number }> {
+    const result = await this.expenseModel.aggregate([
+      {
+        $match: {
+          isDeleted: { $ne: true },
+          "items.product": new Types.ObjectId(productId),
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$perPiecePrice" },
+        },
+      },
+    ]);
+    return { total: result.length > 0 ? result[0].total : 0 };
+  }
+
   // ── Summary stats ──────────────────────────────────────────────
   async getSummary() {
     const base: FilterQuery<ExpenseDocument> = { isDeleted: { $ne: true } };
@@ -224,7 +243,10 @@ export class ExpensesService {
 
       const items = dto.items ?? (existing.items as any);
       const perPiecePrice = dto.perPiecePrice ?? existing.perPiecePrice;
-      const totalQuantity = items.reduce((s: number, i: any) => s + i.quantity, 0);
+      const totalQuantity = items.reduce(
+        (s: number, i: any) => s + i.quantity,
+        0,
+      );
       const totalPrice = totalQuantity * perPiecePrice;
 
       updateData.totalQuantity = totalQuantity;
@@ -232,7 +254,9 @@ export class ExpensesService {
     }
 
     const updated = await this.expenseModel
-      .findOneAndUpdate({ _id: id, isDeleted: { $ne: true } }, updateData, { new: true })
+      .findOneAndUpdate({ _id: id, isDeleted: { $ne: true } }, updateData, {
+        new: true,
+      })
       .populate("party", "name")
       .populate("items.product", "name serialNumber imageUrl category")
       .exec();
@@ -263,7 +287,9 @@ export class ExpensesService {
     if (!result) throw new NotFoundException(`Expense "${id}" not found.`);
   }
   // ── Find Active Expense By Serial ──────────────────────────────
-  async findActiveExpenseBySerial(serialNumber: string): Promise<Expense | null> {
+  async findActiveExpenseBySerial(
+    serialNumber: string,
+  ): Promise<Expense | null> {
     const product = await this.productModel.findOne({ serialNumber }).exec();
     if (!product) return null;
 
